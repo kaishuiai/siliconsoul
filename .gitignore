@@ -49,6 +49,25 @@ logs/
 # Environment
 .env
 .env.local
+.env.*.local
+.env.production
+
+# Secrets and Credentials
+secrets/
+credentials/
+keys/
+.ssh/
+*.pem
+*.key
+*.ppk
+*.keystore
+token.txt
+.tokens
+
+# API Keys and Tokens
+config.local.yml
+config.local.yaml
+settings.local.py
 
 # Project specific
 *.tmp

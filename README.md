@@ -194,6 +194,14 @@ Proprietary - SiliconSoul Inc.
 
 ## Version
 
-**v2.0.0-alpha** (Phase 1 Development)
+**v1.0.0** (Core Framework Released)
 
-Last Updated: 2026-04-07
+Release Date: 2026-04-06  
+Last Updated: 2026-04-06
+
+### Version History
+- **v1.0.0** - Initial release with MOE framework and 9 experts
+  - MOEOrchestrator (core framework)
+  - 9 Expert implementations (3 Demo + 6 Professional)
+  - 174 unit tests (91.19% coverage)
+  - Complete documentation

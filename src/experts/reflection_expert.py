@@ -1,109 +1,83 @@
-"""
-Reflection Expert - 系统反思专家
-
-Analyzes past decisions and generates improvement insights:
-- Decision review and analysis
-- Pattern recognition
-- Lessons learned extraction
-- Improvement recommendations
-- Performance metrics tracking
-"""
-
-import asyncio
-from datetime import datetime
-from typing import Dict, Any, List
-
+"""Reflection Expert - Assess decision quality and continuous learning"""
+import time
+import logging
+from typing import List, Dict, Any
 from src.experts.expert_base import Expert
 from src.models.request_response import ExpertRequest, ExpertResult
 
+logger = logging.getLogger(__name__)
 
 class ReflectionExpert(Expert):
-    """Reflection Expert - Analyzes decisions and generates improvements"""
+    """Analyzes decision quality and provides learning feedback."""
     
     def __init__(self):
-        """Initialize Reflection Expert"""
         super().__init__(name="ReflectionExpert", version="1.0")
         self.logger.info("ReflectionExpert initialized")
     
+    def get_supported_tasks(self) -> List[str]:
+        return ["reflection", "quality_assessment", "continuous_learning"]
+    
     async def analyze(self, request: ExpertRequest) -> ExpertResult:
-        """Analyze and reflect on decisions"""
-        timestamp_start = datetime.now().timestamp()
-        
+        """Assess decision quality and generate learning feedback."""
+        start_time = time.time()
         try:
-            await asyncio.sleep(0.1)
+            self.logger.info(f"Reflecting on decision for user: {request.user_id}")
             
-            # Extract decision history
-            history = self._extract_history(request.text)
+            # Get decision context
+            decision_result = request.extra_params.get("decision", {}) if request.extra_params else {}
             
-            # Analyze outcomes
-            outcomes = self._analyze_outcomes(history)
-            
-            # Extract lessons
-            lessons = self._extract_lessons(outcomes)
+            # Assess quality
+            assessment = self._assess_decision_quality(decision_result)
             
             # Generate improvements
-            improvements = self._generate_improvements(lessons)
+            improvements = self._generate_improvements(assessment)
             
-            analysis_result = {
-                "history_analyzed": len(history),
-                "outcomes": outcomes,
-                "lessons_learned": lessons,
-                "improvements": improvements,
-                "confidence": round(0.75 + (len(lessons) * 0.05), 2)
+            # Build result
+            result_data = {
+                "quality_score": assessment["score"],
+                "assessment": assessment["assessment"],
+                "improvement_suggestions": improvements,
+                "confidence_level": assessment["confidence"]
             }
             
-            timestamp_end = datetime.now().timestamp()
-            
+            end_time = time.time()
             return ExpertResult(
                 expert_name=self.name,
-                result=analysis_result,
-                confidence=0.80,
+                result=result_data,
+                confidence=assessment["confidence"],
                 metadata={"version": self.version},
-                timestamp_start=timestamp_start,
-                timestamp_end=timestamp_end,
+                timestamp_start=start_time,
+                timestamp_end=end_time
             )
-        
         except Exception as e:
-            timestamp_end = datetime.now().timestamp()
-            self.logger.error(f"Reflection failed: {str(e)}", exc_info=True)
-            
-            return ExpertResult(
-                expert_name=self.name,
-                result={},
-                confidence=0.0,
-                timestamp_start=timestamp_start,
-                timestamp_end=timestamp_end,
-                error=str(e),
-            )
+            return self._error_result(start_time, str(e))
     
-    def _extract_history(self, text: str) -> List[str]:
-        """Extract decision history"""
-        return text.split() if text else []
-    
-    def _analyze_outcomes(self, history: List[str]) -> Dict[str, Any]:
-        """Analyze outcomes"""
+    def _assess_decision_quality(self, decision: Dict) -> Dict[str, Any]:
+        """Assess the quality of a decision."""
+        confidence = decision.get("confidence", 0.5)
+        score = min(1.0, confidence)
         return {
-            "total_decisions": len(history),
-            "success_rate": 0.75,
-            "areas_improved": ["Decision speed", "Quality"]
+            "score": round(score, 3),
+            "confidence": round(score, 3),
+            "assessment": "Well-reasoned decision with solid supporting data" if score > 0.7 else "Moderate confidence decision"
         }
     
-    def _extract_lessons(self, outcomes: Dict[str, Any]) -> List[str]:
-        """Extract lessons learned"""
-        return [
-            "Better planning improves outcomes",
-            "Collaboration speeds decision making",
-            "Risk assessment is critical"
-        ]
+    def _generate_improvements(self, assessment: Dict) -> List[str]:
+        """Generate improvement suggestions."""
+        suggestions = []
+        if assessment["score"] < 0.7:
+            suggestions.append("Consider gathering more data before next decision")
+            suggestions.append("Review recent analysis for patterns")
+        suggestions.append("Document this decision for future learning")
+        return suggestions
     
-    def _generate_improvements(self, lessons: List[str]) -> List[str]:
-        """Generate improvement suggestions"""
-        return [
-            "Implement structured decision process",
-            "Increase stakeholder involvement",
-            "Enhance risk management protocols"
-        ]
-    
-    def get_supported_tasks(self) -> List[str]:
-        """Return supported task types"""
-        return ["decision_review", "lesson_extraction", "improvement_generation"]
+    def _error_result(self, start_time: float, error_message: str) -> ExpertResult:
+        return ExpertResult(
+            expert_name=self.name,
+            result={"error": error_message},
+            confidence=0.0,
+            metadata={"version": self.version},
+            timestamp_start=start_time,
+            timestamp_end=time.time(),
+            error=error_message
+        )

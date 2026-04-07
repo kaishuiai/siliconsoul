@@ -1,400 +1,276 @@
 """
-Knowledge Expert - 知识检索和答案生成专家
+Knowledge Expert - 知识库检索和语义搜索（集成 Chroma）
 
-This expert provides knowledge retrieval and answer generation:
-- Knowledge base search and retrieval
-- Document relevance ranking
-- Answer extraction and synthesis
-- Source attribution
-- Confidence scoring based on match quality
-
-The expert searches internal knowledge base and external sources
-to provide accurate, well-sourced answers.
-
-Supported Tasks:
-- knowledge_query: General knowledge search
-- document_retrieval: Find relevant documents
-- answer_generation: Generate answers to questions
-- fact_checking: Verify facts from knowledge base
-- source_attribution: Provide source citations
+功能:
+- 知识库检索
+- 文档相关性排序
+- 答案提取与合成
+- 来源引用
+- 置信度评分
 """
 
-import asyncio
+import time
+import logging
+from typing import Dict, List, Optional, Any
 from datetime import datetime
-from typing import Dict, Any, List, Optional, Tuple
+import os
+from pydantic import BaseModel
 
 from src.experts.expert_base import Expert
 from src.models.request_response import ExpertRequest, ExpertResult
 
+logger = logging.getLogger(__name__)
+
+
+class KnowledgeItem(BaseModel):
+    """知识项数据模型"""
+    source: str
+    content: str
+    title: str = ""
+    confidence: float = 0.0
+
 
 class KnowledgeExpert(Expert):
-    """
-    Knowledge Expert - Knowledge retrieval and answer generation
-    
-    This expert retrieves relevant knowledge from internal knowledge base
-    and generates comprehensive answers with proper source attribution.
-    
-    Features:
-    - Full-text search in knowledge base
-    - Relevance ranking using TF-IDF
-    - Answer synthesis from multiple sources
-    - Source attribution and citations
-    - Confidence scoring
-    
-    Knowledge Base:
-    - Internal documentation
-    - Research papers and articles
-    - Q&A database
-    - User-generated content
-    
-    Example:
-        >>> expert = KnowledgeExpert()
-        >>> request = ExpertRequest(
-        ...     text="How does photosynthesis work?",
-        ...     user_id="user_123"
-        ... )
-        >>> result = await expert.execute(request)
-    """
+    """知识专家 - 集成向量数据库的语义搜索"""
     
     def __init__(self):
-        """Initialize Knowledge Expert"""
-        super().__init__(name="KnowledgeExpert", version="1.0")
-        
-        # Simulated knowledge base
-        self.knowledge_base = self._initialize_knowledge_base()
-        
-        # Ranking weights
-        self.ranking_weights = {
-            "exact_match": 1.0,
-            "keyword_match": 0.7,
-            "semantic_similarity": 0.5,
-            "recency": 0.2
-        }
-        
-        self.logger.info("KnowledgeExpert initialized with knowledge base")
+        """初始化知识专家"""
+        super().__init__(name="KnowledgeExpert", version="2.0")
+        self._knowledge_base = self._initialize_knowledge_base()
+        self._vector_db = None  # 延迟初始化 Chroma
+        self.logger.info("KnowledgeExpert v2.0 initialized")
     
-    def _initialize_knowledge_base(self) -> Dict[str, Dict[str, Any]]:
-        """
-        Initialize simulated knowledge base.
-        
-        Returns:
-            Dictionary mapping document IDs to document metadata
-        """
-        return {
-            "doc_001": {
-                "title": "Introduction to Machine Learning",
-                "content": "Machine learning is a subset of artificial intelligence...",
-                "category": "AI/ML",
-                "keywords": ["machine learning", "AI", "algorithms"],
-                "relevance": 0.0,
-                "timestamp": 1704067200
-            },
-            "doc_002": {
-                "title": "Python Programming Basics",
-                "content": "Python is a high-level programming language...",
-                "category": "Programming",
-                "keywords": ["python", "programming", "syntax"],
-                "relevance": 0.0,
-                "timestamp": 1704153600
-            },
-            "doc_003": {
-                "title": "Web Development with Django",
-                "content": "Django is a Python web framework...",
-                "category": "Web Development",
-                "keywords": ["django", "web", "python"],
-                "relevance": 0.0,
-                "timestamp": 1704240000
-            },
-            "doc_004": {
-                "title": "Data Science Fundamentals",
-                "content": "Data science combines statistics and programming...",
-                "category": "Data Science",
-                "keywords": ["data science", "statistics", "analysis"],
-                "relevance": 0.0,
-                "timestamp": 1704326400
-            },
-            "doc_005": {
-                "title": "Cloud Computing Overview",
-                "content": "Cloud computing provides on-demand computing resources...",
-                "category": "Cloud",
-                "keywords": ["cloud", "computing", "AWS", "Azure"],
-                "relevance": 0.0,
-                "timestamp": 1704412800
-            }
-        }
+    def get_supported_tasks(self) -> List[str]:
+        """返回支持的任务类型"""
+        return ["knowledge_retrieval", "semantic_search", "qa"]
     
     async def analyze(self, request: ExpertRequest) -> ExpertResult:
         """
-        Retrieve knowledge and generate answer.
+        主要知识检索方法
         
         Args:
-            request: ExpertRequest containing query
+            request: 包含查询文本的请求
         
         Returns:
-            ExpertResult with retrieved knowledge and answer
+            知识检索结果
         """
-        timestamp_start = datetime.now().timestamp()
+        start_time = time.time()
         
         try:
-            query = request.text.lower()
+            query = request.text or request.extra_params.get("query", "")
             
-            # Simulate knowledge retrieval (in production, would use search engine)
-            await asyncio.sleep(0.15)
+            if not query:
+                return self._error_result(start_time, "查询文本不能为空")
             
-            # Search knowledge base
-            relevant_docs = self._search_knowledge_base(query)
+            self.logger.info(f"知识查询: {query[:100]}")
             
-            # Rank documents by relevance
-            ranked_docs = self._rank_documents(relevant_docs, query)
+            # 首先尝试向量数据库搜索
+            results = await self._semantic_search(query)
             
-            # Generate answer from top documents
-            answer = self._generate_answer(query, ranked_docs)
+            # 如果向量搜索失败，使用关键词搜索
+            if not results:
+                results = self._keyword_search(query)
             
-            # Calculate confidence based on match quality
-            confidence = self._calculate_confidence(ranked_docs)
+            # 合成答案
+            if results:
+                answer = self._synthesize_answer(results, query)
+                confidence = self._calculate_confidence(results)
+            else:
+                answer = f"抱歉，我在知识库中没有找到关于'{query}'的相关信息。"
+                confidence = 0.0
             
-            # Prepare sources
-            sources = self._prepare_sources(ranked_docs)
-            
-            # Build result
-            analysis_result = {
+            result_data = {
                 "query": query,
                 "answer": answer,
-                "answer_type": self._classify_answer_type(query),
-                "confidence": round(confidence, 2),
-                "relevant_documents": len(ranked_docs),
-                "top_sources": sources,
-                "keywords_found": self._extract_keywords(query),
-                "coverage": {
-                    "exact_match": self._count_exact_matches(ranked_docs, query),
-                    "partial_match": self._count_partial_matches(ranked_docs, query),
-                    "semantic_match": self._count_semantic_matches(ranked_docs, query)
-                },
-                "follow_up_questions": self._generate_follow_up_questions(query)
+                "sources": [r.get("source", "Unknown") for r in results[:3]],
+                "confidence": confidence,
+                "result_count": len(results)
             }
             
-            timestamp_end = datetime.now().timestamp()
-            
             return ExpertResult(
-                expert_name=self.name,
-                result=analysis_result,
+                status="success",
+                data=result_data,
                 confidence=confidence,
-                metadata={
-                    "version": self.version,
-                    "knowledge_base_size": len(self.knowledge_base),
-                    "retrieval_method": "tf-idf",
-                    "timestamp": datetime.now().isoformat()
-                },
-                timestamp_start=timestamp_start,
-                timestamp_end=timestamp_end,
+                execution_time=time.time() - start_time
             )
-        
+            
         except Exception as e:
-            timestamp_end = datetime.now().timestamp()
-            self.logger.error(f"Knowledge retrieval failed: {str(e)}", exc_info=True)
+            self.logger.error(f"知识检索失败: {str(e)}")
+            return self._error_result(start_time, f"检索错误: {str(e)}")
+    
+    async def _semantic_search(self, query: str) -> List[Dict]:
+        """
+        向量数据库语义搜索
+        
+        使用 Chroma 进行相似度搜索
+        """
+        try:
+            # 延迟初始化 Chroma
+            if self._vector_db is None:
+                from chromadb import Client
+                self._vector_db = Client()
+                self._initialize_vector_db()
             
-            return ExpertResult(
-                expert_name=self.name,
-                result={},
-                confidence=0.0,
-                timestamp_start=timestamp_start,
-                timestamp_end=timestamp_end,
-                error=f"Retrieval error: {str(e)}",
+            # 执行相似度搜索
+            collection = self._vector_db.get_or_create_collection("knowledge")
+            results = collection.query(
+                query_texts=[query],
+                n_results=5
             )
+            
+            if results and results["ids"] and len(results["ids"]) > 0:
+                # 格式化结果
+                docs = []
+                for i, doc_id in enumerate(results["ids"][0]):
+                    docs.append({
+                        "id": doc_id,
+                        "content": results["documents"][0][i] if results["documents"] else "",
+                        "distance": results["distances"][0][i] if results["distances"] else 0,
+                        "source": f"Vector DB - {doc_id}"
+                    })
+                
+                self.logger.info(f"向量搜索找到 {len(docs)} 个结果")
+                return docs
+                
+        except ImportError:
+            self.logger.warning("Chroma 未安装，使用关键词搜索")
+        except Exception as e:
+            self.logger.warning(f"向量搜索失败: {str(e)}")
+        
+        return []
     
-    def _search_knowledge_base(self, query: str) -> List[str]:
-        """
-        Search knowledge base for relevant documents.
-        
-        Args:
-            query: Search query
-        
-        Returns:
-            List of relevant document IDs
-        """
-        relevant_docs = []
-        query_terms = set(query.split())
-        
-        for doc_id, doc in self.knowledge_base.items():
-            doc_keywords = set(doc["keywords"])
-            doc_content = doc["content"].lower()
+    def _initialize_vector_db(self):
+        """初始化向量数据库并加载文档"""
+        try:
+            collection = self._vector_db.get_or_create_collection("knowledge")
             
-            # Check for keyword matches
-            if query_terms & doc_keywords or any(term in doc_content for term in query_terms):
-                relevant_docs.append(doc_id)
-        
-        return relevant_docs
+            # 添加知识库文档
+            documents = []
+            ids = []
+            
+            for doc_id, doc_data in self._knowledge_base.items():
+                documents.append(doc_data["content"])
+                ids.append(doc_id)
+            
+            # 添加到 Chroma
+            if documents:
+                collection.add(
+                    ids=ids,
+                    documents=documents,
+                    metadatas=[{"source": self._knowledge_base[id]["source"]} for id in ids]
+                )
+                
+                self.logger.info(f"加载 {len(documents)} 个文档到向量数据库")
+                
+        except Exception as e:
+            self.logger.warning(f"向量数据库初始化失败: {str(e)}")
     
-    def _rank_documents(self, doc_ids: List[str], query: str) -> List[Tuple[str, Dict[str, Any], float]]:
-        """
-        Rank documents by relevance to query.
+    def _keyword_search(self, query: str) -> List[Dict]:
+        """关键词搜索（向量数据库不可用时的备选）"""
+        results = []
+        query_lower = query.lower()
         
-        Args:
-            doc_ids: List of document IDs
-            query: Search query
+        for doc_id, doc_data in self._knowledge_base.items():
+            content_lower = doc_data["content"].lower()
+            title_lower = doc_data["title"].lower()
+            
+            # 计算匹配度
+            score = 0
+            if query_lower in title_lower:
+                score += 3
+            
+            words = query_lower.split()
+            for word in words:
+                if len(word) > 2 and word in content_lower:
+                    score += 1
+            
+            if score > 0:
+                results.append({
+                    "id": doc_id,
+                    "content": doc_data["content"],
+                    "title": doc_data["title"],
+                    "score": score,
+                    "source": doc_data["source"]
+                })
         
-        Returns:
-            List of (doc_id, doc, relevance_score) tuples, sorted by relevance
-        """
-        ranked = []
-        query_terms = set(query.split())
-        
-        for doc_id in doc_ids:
-            doc = self.knowledge_base[doc_id]
-            score = 0.0
-            
-            # Exact match in title
-            if query.lower() in doc["title"].lower():
-                score += 1.0
-            
-            # Keyword matches
-            matching_keywords = len(set(doc["keywords"]) & query_terms)
-            score += matching_keywords * 0.7
-            
-            # Content matches
-            matching_terms = sum(1 for term in query_terms if term in doc["content"].lower())
-            score += matching_terms * 0.5
-            
-            # Recency bonus
-            score += 0.2
-            
-            ranked.append((doc_id, doc, min(1.0, score)))
-        
-        # Sort by relevance score descending
-        ranked.sort(key=lambda x: x[2], reverse=True)
-        
-        return ranked
+        # 按得分排序
+        results.sort(key=lambda x: x.get("score", 0), reverse=True)
+        return results[:5]
     
-    def _generate_answer(self, query: str, ranked_docs: List[Tuple[str, Dict[str, Any], float]]) -> str:
-        """
-        Generate answer from top documents.
+    def _synthesize_answer(self, results: List[Dict], query: str) -> str:
+        """合成答案"""
+        if not results:
+            return f"关于'{query}'的信息暂时不可用。"
         
-        Args:
-            query: Original query
-            ranked_docs: Ranked documents with relevance scores
+        # 使用第一个（最相关的）结果
+        best_result = results[0]
+        content = best_result.get("content", "")
+        title = best_result.get("title", "")
         
-        Returns:
-            Generated answer text
-        """
-        if not ranked_docs:
-            return "I could not find relevant information about your query in the knowledge base."
+        # 生成答案
+        if len(content) > 200:
+            answer = content[:200] + "..."
+        else:
+            answer = content
         
-        # Use top document for answer
-        top_doc_id, top_doc, relevance = ranked_docs[0]
-        
-        answer = f"""Based on the knowledge base, here's what I found about "{query}":
-
-{top_doc['content'][:200]}...
-
-This information comes from: {top_doc['title']} (Category: {top_doc['category']})
-"""
-        
-        return answer.strip()
+        return f"根据知识库中的'{title}'：{answer}"
     
-    def _calculate_confidence(self, ranked_docs: List[Tuple[str, Dict[str, Any], float]]) -> float:
-        """
-        Calculate confidence in the answer.
-        
-        Args:
-            ranked_docs: Ranked documents
-        
-        Returns:
-            Confidence score from 0 to 1
-        """
-        if not ranked_docs:
+    def _calculate_confidence(self, results: List[Dict]) -> float:
+        """计算置信度"""
+        if not results:
             return 0.0
         
-        # Confidence based on top document's relevance
-        top_relevance = ranked_docs[0][2]
+        # 基于最佳结果的相关性
+        best_result = results[0]
         
-        # Additional confidence from number of matching documents
-        num_matches = len(ranked_docs)
-        match_bonus = min(0.2, num_matches * 0.05)
-        
-        confidence = min(1.0, top_relevance + match_bonus)
+        # 向量搜索的距离
+        if "distance" in best_result:
+            distance = best_result["distance"]
+            confidence = max(0.0, 1.0 - distance)
+        # 关键词搜索的得分
+        elif "score" in best_result:
+            score = best_result["score"]
+            confidence = min(0.95, score / 3.0)
+        else:
+            confidence = 0.5
         
         return confidence
     
-    def _prepare_sources(self, ranked_docs: List[Tuple[str, Dict[str, Any], float]]) -> List[Dict[str, Any]]:
-        """
-        Prepare source citations.
-        
-        Args:
-            ranked_docs: Ranked documents
-        
-        Returns:
-            List of source information
-        """
-        sources = []
-        
-        for doc_id, doc, relevance in ranked_docs[:3]:  # Top 3 sources
-            sources.append({
-                "id": doc_id,
-                "title": doc["title"],
-                "category": doc["category"],
-                "relevance": round(relevance, 2)
-            })
-        
-        return sources
+    def _initialize_knowledge_base(self) -> Dict[str, Dict]:
+        """初始化知识库"""
+        return {
+            "doc_001": {
+                "title": "股票投资基础",
+                "content": "股票投资是长期财富积累的重要方式。投资前应了解基本概念、风险管理原则和常见的交易策略。",
+                "source": "Knowledge Base"
+            },
+            "doc_002": {
+                "title": "技术分析指标",
+                "content": "常见技术分析指标包括移动平均(MA)、相对强度指数(RSI)、MACD和布林带等。这些指标帮助识别趋势和买卖点。",
+                "source": "Knowledge Base"
+            },
+            "doc_003": {
+                "title": "风险管理",
+                "content": "风险管理是投资成功的关键。包括止损设置、头寸管理、资产配置和多元化投资等策略。",
+                "source": "Knowledge Base"
+            },
+            "doc_004": {
+                "title": "市场心理学",
+                "content": "市场参与者的情绪和心理因素影响股价波动。理解市场心理有助于做出更理性的投资决策。",
+                "source": "Knowledge Base"
+            },
+            "doc_005": {
+                "title": "投资组合构建",
+                "content": "成功的投资组合应该根据风险承受能力和投资目标进行多元化配置。定期调整和再平衡很重要。",
+                "source": "Knowledge Base"
+            }
+        }
     
-    def _extract_keywords(self, query: str) -> List[str]:
-        """Extract keywords from query"""
-        return query.split()
-    
-    def _classify_answer_type(self, query: str) -> str:
-        """Classify the type of answer needed"""
-        query_lower = query.lower()
-        
-        if any(word in query_lower for word in ["what", "which", "who"]):
-            return "definition"
-        elif any(word in query_lower for word in ["how", "why"]):
-            return "explanation"
-        elif any(word in query_lower for word in ["compare", "difference", "vs"]):
-            return "comparison"
-        else:
-            return "general"
-    
-    def _count_exact_matches(self, ranked_docs: List[Tuple[str, Dict[str, Any], float]], query: str) -> int:
-        """Count exact keyword matches"""
-        count = 0
-        query_terms = set(query.split())
-        
-        for _, doc, _ in ranked_docs:
-            matching = len(set(doc["keywords"]) & query_terms)
-            if matching > 0:
-                count += 1
-        
-        return count
-    
-    def _count_partial_matches(self, ranked_docs: List[Tuple[str, Dict[str, Any], float]], query: str) -> int:
-        """Count partial matches"""
-        return len(ranked_docs)
-    
-    def _count_semantic_matches(self, ranked_docs: List[Tuple[str, Dict[str, Any], float]], query: str) -> int:
-        """Count semantic matches"""
-        return max(0, len(ranked_docs) - 1)
-    
-    def _generate_follow_up_questions(self, query: str) -> List[str]:
-        """Generate suggested follow-up questions"""
-        follow_ups = [
-            f"Tell me more about {query.split()[0]}",
-            f"How is {query.split()[0]} applied in practice?",
-            f"What are the advantages of {query.split()[0]}?",
-        ]
-        
-        return follow_ups[:2]
-    
-    def get_supported_tasks(self) -> List[str]:
-        """
-        Return supported task types.
-        
-        Returns:
-            List of supported task types
-        """
-        return [
-            "knowledge_query",
-            "document_retrieval",
-            "answer_generation",
-            "fact_checking",
-            "source_attribution"
-        ]
+    def _error_result(self, start_time: float, error_msg: str) -> ExpertResult:
+        """返回错误结果"""
+        return ExpertResult(
+            status="error",
+            data={"error": error_msg},
+            confidence=0.0,
+            execution_time=time.time() - start_time
+        )

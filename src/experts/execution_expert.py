@@ -1,118 +1,81 @@
-"""
-Execution Expert - 执行任务专家
-
-Manages task execution and progress tracking:
-- Task decomposition and planning
-- Step-by-step execution
-- Progress tracking and reporting
-- Obstacle detection and resolution
-- Completion verification
-"""
-
-import asyncio
+"""Execution Expert - Execute trades and track results"""
+import time
+import logging
+from typing import List, Dict, Any
 from datetime import datetime
-from typing import Dict, Any, List
-
 from src.experts.expert_base import Expert
 from src.models.request_response import ExpertRequest, ExpertResult
 
+logger = logging.getLogger(__name__)
 
 class ExecutionExpert(Expert):
-    """Execution Expert - Manages task execution and progress"""
+    """Handles trade execution and position tracking."""
     
     def __init__(self):
-        """Initialize Execution Expert"""
         super().__init__(name="ExecutionExpert", version="1.0")
+        self._execution_log = []
         self.logger.info("ExecutionExpert initialized")
     
+    def get_supported_tasks(self) -> List[str]:
+        return ["trade_execution", "position_tracking", "result_verification"]
+    
     async def analyze(self, request: ExpertRequest) -> ExpertResult:
-        """Manage task execution"""
-        timestamp_start = datetime.now().timestamp()
-        
+        """Execute trade and track execution result."""
+        start_time = time.time()
         try:
-            await asyncio.sleep(0.1)
+            self.logger.info(f"Executing trade for user: {request.user_id}")
             
-            # Extract task
-            task = request.text
+            # Extract trade parameters
+            trade_decision = request.extra_params.get("trade_decision", {}) if request.extra_params else {}
             
-            # Decompose task
-            steps = self._decompose_task(task)
+            # Simulate execution
+            execution_result = self._execute_trade(trade_decision)
             
-            # Plan execution
-            plan = self._create_execution_plan(steps)
+            # Track execution
+            self._execution_log.append(execution_result)
             
-            # Track progress
-            progress = self._track_progress(steps)
-            
-            # Identify obstacles
-            obstacles = self._identify_obstacles(steps)
-            
-            analysis_result = {
-                "task": task,
-                "steps": steps,
-                "execution_plan": plan,
-                "progress": progress,
-                "obstacles": obstacles,
-                "completion_estimate": "95%",
-                "confidence": round(0.85, 2)
+            # Build result
+            result_data = {
+                "execution_status": execution_result["status"],
+                "order_id": execution_result["order_id"],
+                "executed_price": execution_result["price"],
+                "quantity": execution_result["quantity"],
+                "timestamp": execution_result["timestamp"],
+                "commission": execution_result["commission"]
             }
             
-            timestamp_end = datetime.now().timestamp()
-            
+            end_time = time.time()
             return ExpertResult(
                 expert_name=self.name,
-                result=analysis_result,
-                confidence=0.85,
-                metadata={"version": self.version},
-                timestamp_start=timestamp_start,
-                timestamp_end=timestamp_end,
+                result=result_data,
+                confidence=0.95,
+                metadata={"version": self.version, "orders_executed": len(self._execution_log)},
+                timestamp_start=start_time,
+                timestamp_end=end_time
             )
-        
         except Exception as e:
-            timestamp_end = datetime.now().timestamp()
-            self.logger.error(f"Execution failed: {str(e)}", exc_info=True)
-            
-            return ExpertResult(
-                expert_name=self.name,
-                result={},
-                confidence=0.0,
-                timestamp_start=timestamp_start,
-                timestamp_end=timestamp_end,
-                error=str(e),
-            )
+            return self._error_result(start_time, str(e))
     
-    def _decompose_task(self, task: str) -> List[str]:
-        """Decompose task into steps"""
-        words = task.split()
-        steps = [f"Step {i+1}: {' '.join(words[i*2:(i+1)*2])}" for i in range(min(3, len(words)//2 + 1))]
-        return steps if steps else ["Execute task"]
-    
-    def _create_execution_plan(self, steps: List[str]) -> Dict[str, Any]:
-        """Create execution plan"""
+    def _execute_trade(self, decision: Dict) -> Dict[str, Any]:
+        """Execute a trade."""
+        import random
+        order_id = f"ORD_{int(time.time())}_{random.randint(1000, 9999)}"
         return {
-            "total_steps": len(steps),
-            "estimated_duration": "2 hours",
-            "resources_needed": ["Team", "Tools"],
-            "timeline": "Start immediately"
+            "status": "executed",
+            "order_id": order_id,
+            "price": random.uniform(9.5, 11.5),
+            "quantity": 100,
+            "timestamp": datetime.now().isoformat(),
+            "commission": 0.001
         }
     
-    def _track_progress(self, steps: List[str]) -> Dict[str, Any]:
-        """Track execution progress"""
-        return {
-            "completed_steps": len(steps) - 1,
-            "total_steps": len(steps),
-            "progress_percentage": int((len(steps) - 1) / len(steps) * 100) if steps else 0,
-            "status": "In progress"
-        }
-    
-    def _identify_obstacles(self, steps: List[str]) -> List[str]:
-        """Identify potential obstacles"""
-        return [
-            "Resource constraints",
-            "Timeline pressure",
-            "Dependency issues"
-        ]
-    
-    def get_supported_tasks(self) -> List[str]:
-        """Return supported task types"""
-        return ["task_execution", "progress_tracking", "obstacle_resolution"]
+    def _error_result(self, start_time: float, error_message: str) -> ExpertResult:
+        return ExpertResult(
+            expert_name=self.name,
+            result={"error": error_message},
+            confidence=0.0,
+            metadata={"version": self.version},
+            timestamp_start=start_time,
+            timestamp_end=time.time(),
+            error=error_message
+        )

@@ -1,368 +1,324 @@
 """
-Dialog Expert - 对话专家
+Dialog Expert - 自然语言理解和对话管理（集成 LLM）
 
-This expert handles natural language understanding and dialogue generation:
-- Intent recognition from user input
-- Context management and conversation history
-- Response generation using dialogue strategies
-- Multi-turn conversation support
-- Emotion detection and sentiment analysis
-
-The expert maintains conversation context and generates contextually
-appropriate responses following conversation rules and best practices.
-
-Supported Tasks:
-- dialog_generation: Generate natural responses
-- intent_recognition: Identify user intent
-- context_management: Manage conversation context
-- emotion_detection: Detect user emotions
-- response_ranking: Rank candidate responses
+功能:
+- 意图分类
+- 实体提取（股票、指标、时间框架）
+- 上下文感知回复
+- 多轮对话支持
+- 自然语言生成（通过 LLM）
 """
 
-import asyncio
+import time
+import logging
+import re
+from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
-from typing import Dict, Any, List, Optional, Tuple
+import os
 
 from src.experts.expert_base import Expert
 from src.models.request_response import ExpertRequest, ExpertResult
 
+logger = logging.getLogger(__name__)
+
 
 class DialogExpert(Expert):
-    """
-    Dialog Expert - Natural language dialogue and conversation management
-    
-    This expert handles multi-turn conversations with context awareness,
-    intent recognition, and natural response generation.
-    
-    Features:
-    - Intent classification (greeting, question, statement, request)
-    - Sentiment and emotion detection
-    - Context tracking across multiple turns
-    - Response generation with various strategies
-    - Conversation flow management
-    
-    Conversation Strategies:
-    - Clarification: Ask for more details
-    - Empathy: Show understanding
-    - Information: Provide relevant info
-    - Action: Suggest actions
-    
-    Example:
-        >>> expert = DialogExpert()
-        >>> request = ExpertRequest(
-        ...     text="Hi, how are you?",
-        ...     user_id="user_123",
-        ...     context={"conversation_id": "conv_1"}
-        ... )
-        >>> result = await expert.execute(request)
-    """
+    """自然语言对话专家 - 集成 LLM 生成自然回复"""
     
     def __init__(self):
-        """Initialize Dialog Expert"""
-        super().__init__(name="DialogExpert", version="1.0")
-        
-        # Intent patterns
-        self.intent_patterns = {
-            "greeting": ["hello", "hi", "hey", "good morning", "good afternoon"],
-            "question": ["what", "how", "why", "when", "where", "who", "?"],
-            "request": ["please", "can you", "could you", "would you", "help"],
-            "statement": ["i think", "i believe", "i feel", "it seems"]
+        """初始化对话专家"""
+        super().__init__(name="DialogExpert", version="2.0")
+        self._intents = {
+            "analyze_stock": ["分析", "查看", "检查", "研究", "查询"],
+            "get_price": ["价格", "成本", "多少钱", "报价"],
+            "technical_analysis": ["技术", "指标", "MA", "RSI", "MACD"],
+            "buy_signal": ["买", "看涨", "上升", "多头"],
+            "sell_signal": ["卖", "看跌", "下降", "空头"],
+            "risk_management": ["风险", "止损", "头寸", "配置"],
+            "portfolio": ["投资组合", "分散", "配置", "持仓"],
+            "knowledge_query": ["什么", "如何", "解释", "告诉我"]
         }
-        
-        # Sentiment keywords
-        self.positive_words = ["good", "great", "excellent", "happy", "love", "awesome"]
-        self.negative_words = ["bad", "terrible", "sad", "hate", "angry", "awful"]
-        
-        # Conversation context
-        self.conversation_memory = {}
-        
-        self.logger.info("DialogExpert initialized")
+        self._conversation_history = {}
+        self._llm_api_key = os.getenv("DEEPSEEK_API_KEY", "")
+        self.logger.info("DialogExpert v2.0 initialized with LLM integration")
+    
+    def get_supported_tasks(self) -> List[str]:
+        """返回支持的任务类型"""
+        return ["dialog", "intent_classification", "entity_extraction"]
     
     async def analyze(self, request: ExpertRequest) -> ExpertResult:
         """
-        Analyze dialogue input and generate response.
+        主要对话分析方法
         
         Args:
-            request: ExpertRequest containing user message
+            request: 包含用户输入的请求
         
         Returns:
-            ExpertResult with dialogue response and analysis
+            对话结果
         """
-        timestamp_start = datetime.now().timestamp()
+        start_time = time.time()
         
         try:
-            text = request.text.lower()
-            user_id = request.user_id
+            user_text = request.text or request.extra_params.get("text", "")
+            user_id = request.user_id or "unknown"
             
-            # Simulate processing time
-            await asyncio.sleep(0.1)
+            if not user_text:
+                return self._error_result(start_time, "输入文本不能为空")
             
-            # Recognize intent
-            intent = self._recognize_intent(text)
+            self.logger.info(f"处理对话 用户: {user_id} 文本: {user_text[:50]}")
             
-            # Detect sentiment
-            sentiment, emotion = self._detect_sentiment(text)
+            # 分类意图
+            intent = self._classify_intent(user_text)
             
-            # Manage context
-            context = self._manage_context(user_id, text, intent)
+            # 提取实体
+            entities = self._extract_entities(user_text)
             
-            # Generate response
-            response = self._generate_response(text, intent, sentiment, context)
+            # 获取或创建对话历史
+            if user_id not in self._conversation_history:
+                self._conversation_history[user_id] = []
             
-            # Rank and select response
-            final_response = response
-            confidence = self._calculate_confidence(intent, sentiment)
+            # 生成自然回复（使用 LLM）
+            response = await self._generate_response(
+                user_text, intent, entities, user_id
+            )
             
-            # Build result
-            analysis_result = {
-                "user_message": request.text,
+            # 保存对话历史
+            self._conversation_history[user_id].append({
+                "timestamp": datetime.now().isoformat(),
+                "user": user_text,
+                "assistant": response,
                 "intent": intent,
-                "sentiment": sentiment,
-                "emotion": emotion,
-                "response": final_response,
-                "response_strategy": self._get_response_strategy(intent),
-                "context": {
-                    "conversation_turn": context.get("turn", 1),
-                    "topics_mentioned": self._extract_topics(text),
-                    "entities": self._extract_entities(text)
-                },
-                "confidence": round(confidence, 2),
-                "follow_up_options": self._generate_follow_ups(intent, context)
+                "entities": entities
+            })
+            
+            # 构建结果
+            result_data = {
+                "user_input": user_text,
+                "response": response,
+                "intent": intent,
+                "entities": entities,
+                "confidence": 0.85,
+                "conversation_id": user_id
             }
             
-            timestamp_end = datetime.now().timestamp()
-            
             return ExpertResult(
-                expert_name=self.name,
-                result=analysis_result,
-                confidence=confidence,
-                metadata={
-                    "version": self.version,
-                    "dialogue_strategy": "context_aware",
-                    "timestamp": datetime.now().isoformat()
-                },
-                timestamp_start=timestamp_start,
-                timestamp_end=timestamp_end,
+                status="success",
+                data=result_data,
+                confidence=0.85,
+                execution_time=time.time() - start_time
             )
-        
+            
         except Exception as e:
-            timestamp_end = datetime.now().timestamp()
-            self.logger.error(f"Dialogue processing failed: {str(e)}", exc_info=True)
-            
-            return ExpertResult(
-                expert_name=self.name,
-                result={},
-                confidence=0.0,
-                timestamp_start=timestamp_start,
-                timestamp_end=timestamp_end,
-                error=f"Dialogue error: {str(e)}",
-            )
+            self.logger.error(f"对话处理失败: {str(e)}")
+            return self._error_result(start_time, f"处理错误: {str(e)}")
     
-    def _recognize_intent(self, text: str) -> str:
-        """
-        Recognize user intent from text.
-        
-        Args:
-            text: User message (lowercase)
-        
-        Returns:
-            Intent type: greeting, question, request, statement, other
-        """
-        for intent, keywords in self.intent_patterns.items():
-            if any(keyword in text for keyword in keywords):
-                return intent
-        
-        return "other"
-    
-    def _detect_sentiment(self, text: str) -> Tuple[str, str]:
-        """
-        Detect sentiment and emotion from text.
-        
-        Args:
-            text: User message
-        
-        Returns:
-            Tuple of (sentiment, emotion)
-        """
-        positive_count = sum(1 for word in self.positive_words if word in text)
-        negative_count = sum(1 for word in self.negative_words if word in text)
-        
-        if positive_count > negative_count:
-            sentiment = "positive"
-            emotion = "happy"
-        elif negative_count > positive_count:
-            sentiment = "negative"
-            emotion = "sad"
-        else:
-            sentiment = "neutral"
-            emotion = "neutral"
-        
-        return sentiment, emotion
-    
-    def _manage_context(self, user_id: str, text: str, intent: str) -> Dict[str, Any]:
-        """
-        Manage conversation context.
-        
-        Args:
-            user_id: User identifier
-            text: Current message
-            intent: Recognized intent
-        
-        Returns:
-            Context dictionary
-        """
-        if user_id not in self.conversation_memory:
-            self.conversation_memory[user_id] = {
-                "turn": 0,
-                "topics": [],
-                "history": []
-            }
-        
-        context = self.conversation_memory[user_id]
-        context["turn"] += 1
-        context["history"].append(text)
-        
-        return context
-    
-    def _generate_response(
-        self,
-        text: str,
-        intent: str,
-        sentiment: str,
-        context: Dict[str, Any]
+    async def _generate_response(
+        self, user_text: str, intent: str,
+        entities: Dict, user_id: str
     ) -> str:
         """
-        Generate dialogue response.
+        生成自然对话回复（优先使用 LLM，否则使用规则）
         
         Args:
-            text: User message
-            intent: Recognized intent
-            sentiment: User sentiment
-            context: Conversation context
+            user_text: 用户输入
+            intent: 分类的意图
+            entities: 提取的实体
+            user_id: 用户 ID
         
         Returns:
-            Generated response
+            自然语言回复
         """
-        response_templates = {
-            "greeting": "Hello! Nice to talk with you. How can I help?",
-            "question": "That's a great question! Let me think about it...",
-            "request": "I'd be happy to help! Here's what I can do...",
-            "statement": "I understand what you mean. That makes sense.",
-            "other": "Tell me more about that. I'm interested."
+        # 首先尝试使用 LLM
+        llm_response = await self._call_llm(user_text, intent, entities)
+        if llm_response:
+            return llm_response
+        
+        # 备选：规则引擎生成回复
+        return self._generate_rule_based_response(user_text, intent, entities)
+    
+    async def _call_llm(
+        self, user_text: str, intent: str, entities: Dict
+    ) -> Optional[str]:
+        """
+        调用 LLM API 生成自然回复
+        
+        支持的 LLM：
+        - DeepSeek
+        - Qwen
+        - OpenAI 兼容接口
+        """
+        try:
+            # 尝试 DeepSeek API
+            if self._llm_api_key:
+                return await self._call_deepseek(user_text, intent, entities)
+            
+            # 尝试通用 LLM 接口
+            return await self._call_generic_llm(user_text, intent, entities)
+            
+        except Exception as e:
+            self.logger.warning(f"LLM 调用失败: {str(e)}")
+            return None
+    
+    async def _call_deepseek(
+        self, user_text: str, intent: str, entities: Dict
+    ) -> Optional[str]:
+        """调用 DeepSeek API"""
+        try:
+            import aiohttp
+            
+            url = "https://api.deepseek.com/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {self._llm_api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            # 构建提示
+            system_prompt = """你是一个专业的股票投资顾问。
+用户提出的问题都与股票分析、投资决策有关。
+请用中文回答，保持专业、友好的语气。
+回答要简洁明了，控制在 100 字以内。"""
+            
+            payload = {
+                "model": "deepseek-chat",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_text}
+                ],
+                "temperature": 0.7,
+                "max_tokens": 150
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=10)
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        content = data["choices"][0]["message"]["content"]
+                        self.logger.info(f"DeepSeek 成功生成回复")
+                        return content
+                    else:
+                        self.logger.warning(f"DeepSeek API 返回 {resp.status}")
+                        return None
+                        
+        except Exception as e:
+            self.logger.warning(f"DeepSeek 调用失败: {str(e)}")
+            return None
+    
+    async def _call_generic_llm(
+        self, user_text: str, intent: str, entities: Dict
+    ) -> Optional[str]:
+        """调用通用 LLM 接口"""
+        try:
+            import aiohttp
+            
+            # 支持 OpenAI 兼容接口
+            api_key = os.getenv("OPENAI_API_KEY", "")
+            api_base = os.getenv("LLM_API_BASE", "https://api.openai.com/v1")
+            
+            if not api_key:
+                return None
+            
+            url = f"{api_base}/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            payload = {
+                "model": "gpt-3.5-turbo",
+                "messages": [
+                    {"role": "user", "content": user_text}
+                ],
+                "temperature": 0.7,
+                "max_tokens": 150
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=10)
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        return data["choices"][0]["message"]["content"]
+                        
+        except Exception as e:
+            self.logger.warning(f"LLM 调用失败: {str(e)}")
+            
+        return None
+    
+    def _generate_rule_based_response(
+        self, user_text: str, intent: str, entities: Dict
+    ) -> str:
+        """
+        规则引擎生成回复（LLM 不可用时的备选）
+        """
+        responses = {
+            "analyze_stock": "我已收到您的股票分析请求。请告诉我具体分析哪只股票？",
+            "get_price": "我正在查询最新价格。请指定您关注的股票代码。",
+            "technical_analysis": "技术分析涉及多个指标，我建议关注 MA、RSI 和 MACD。",
+            "buy_signal": "如果出现买入信号，我们需要结合风险管理策略进行决策。",
+            "sell_signal": "售出决策应基于技术面和基本面的综合分析。",
+            "risk_management": "风险管理是投资的关键。建议设定合理的止损位置。",
+            "portfolio": "投资组合应该分散配置，降低单只股票的风险。",
+            "knowledge_query": "很高兴为您解答。请告诉我您想了解哪方面的内容？",
         }
         
-        base_response = response_templates.get(intent, response_templates["other"])
-        
-        # Adjust tone based on sentiment
-        if sentiment == "negative":
-            base_response = "I understand your concern. " + base_response
-        elif sentiment == "positive":
-            base_response = "Great! " + base_response
-        
-        # Add context awareness
-        if context["turn"] > 2:
-            base_response += " (Based on our conversation so far)"
-        
-        return base_response
+        return responses.get(intent, f"我理解您在询问关于{intent}的问题。我很乐意帮助您。")
     
-    def _calculate_confidence(self, intent: str, sentiment: str) -> float:
+    def _classify_intent(self, user_text: str) -> str:
+        """分类用户意图"""
+        user_text_lower = user_text.lower()
+        
+        best_intent = "knowledge_query"
+        best_score = 0
+        
+        for intent, keywords in self._intents.items():
+            score = sum(1 for kw in keywords if kw in user_text_lower)
+            if score > best_score:
+                best_score = score
+                best_intent = intent
+        
+        return best_intent
+    
+    def _extract_entities(self, user_text: str) -> Dict[str, List[str]]:
         """
-        Calculate confidence in dialogue response.
+        提取命名实体
         
-        Args:
-            intent: Recognized intent
-            sentiment: Detected sentiment
-        
-        Returns:
-            Confidence score 0-1
+        包括：
+        - 股票代码（如 600000.SH）
+        - 技术指标（MA, RSI, MACD）
+        - 时间表达（今天、周、月）
         """
-        base_confidence = 0.75
-        
-        # Higher confidence for clear intents
-        if intent != "other":
-            base_confidence += 0.15
-        
-        # Slight boost for detected sentiment
-        if sentiment != "neutral":
-            base_confidence += 0.05
-        
-        return min(1.0, base_confidence)
-    
-    def _get_response_strategy(self, intent: str) -> str:
-        """Get the dialogue strategy used"""
-        strategies = {
-            "greeting": "friendly_acknowledgment",
-            "question": "informative_answer",
-            "request": "helpful_action",
-            "statement": "empathetic_response",
-            "other": "exploratory"
-        }
-        return strategies.get(intent, "exploratory")
-    
-    def _extract_topics(self, text: str) -> List[str]:
-        """Extract topics mentioned in text"""
-        # Simple keyword extraction
-        keywords = text.split()
-        # Filter out short common words
-        topics = [w for w in keywords if len(w) > 3]
-        return topics[:3]  # Top 3 topics
-    
-    def _extract_entities(self, text: str) -> List[str]:
-        """Extract named entities from text"""
-        # Simplified entity extraction
-        entities = []
-        
-        # Look for capitalized words (potential proper nouns)
-        words = text.split()
-        for word in words:
-            if word[0].isupper():
-                entities.append(word)
-        
-        return entities[:3]
-    
-    def _generate_follow_ups(self, intent: str, context: Dict[str, Any]) -> List[str]:
-        """
-        Generate suggested follow-up questions/responses.
-        
-        Args:
-            intent: Current intent
-            context: Conversation context
-        
-        Returns:
-            List of follow-up suggestions
-        """
-        follow_ups = {
-            "greeting": [
-                "What brings you here?",
-                "How can I assist you?"
-            ],
-            "question": [
-                "Would you like more details?",
-                "Any other questions?"
-            ],
-            "request": [
-                "Is there anything else?",
-                "Would you like me to elaborate?"
-            ],
-            "statement": [
-                "Tell me more about that",
-                "How does that affect you?"
-            ]
+        entities = {
+            "stocks": [],
+            "indicators": [],
+            "timeframes": []
         }
         
-        return follow_ups.get(intent, ["What else?", "Continue..."])
-    
-    def get_supported_tasks(self) -> List[str]:
-        """
-        Return supported task types.
+        # 提取股票代码
+        stock_pattern = r'\b[0-9]{6}\.(SH|SZ|HK)\b'
+        entities["stocks"] = re.findall(stock_pattern, user_text, re.IGNORECASE)
         
-        Returns:
-            List of supported task types
-        """
-        return [
-            "dialog_generation",
-            "intent_recognition",
-            "context_management",
-            "emotion_detection",
-            "response_ranking"
-        ]
+        # 提取技术指标
+        indicators = ["MA", "RSI", "MACD", "布林带", "KDJ", "CCI"]
+        for ind in indicators:
+            if ind.lower() in user_text.lower():
+                entities["indicators"].append(ind)
+        
+        # 提取时间表达
+        timeframes = ["今天", "本周", "本月", "本年", "实时"]
+        for tf in timeframes:
+            if tf in user_text:
+                entities["timeframes"].append(tf)
+        
+        return entities
+    
+    def _error_result(self, start_time: float, error_msg: str) -> ExpertResult:
+        """返回错误结果"""
+        return ExpertResult(
+            status="error",
+            data={"error": error_msg},
+            confidence=0.0,
+            execution_time=time.time() - start_time
+        )

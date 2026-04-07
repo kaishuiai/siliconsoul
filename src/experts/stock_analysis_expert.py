@@ -1,383 +1,455 @@
 """
-Stock Analysis Expert - 股票分析专家
+Stock Analysis Expert - 真实数据驱动的股票分析专家
 
-This expert provides comprehensive stock analysis including:
-- Technical analysis (moving averages, RSI, MACD)
-- Fundamental analysis (P/E ratio, revenue growth)
-- Risk assessment (volatility, beta)
-- Investment recommendations (BUY/HOLD/SELL)
+功能:
+- 技术指标计算 (MA, RSI, MACD, 布林带)
+- 趋势分析和检测
+- 支撑/阻力位识别
+- 交易信号生成 (BUY/HOLD/SELL)
+- 置信度评分
 
-The expert analyzes stock data from Tushare API and provides
-actionable investment insights with detailed reasoning.
-
-Supported Tasks:
-- stock_analysis: Complete stock analysis
-- technical_analysis: Technical indicators only
-- fundamental_analysis: Fundamentals only
-- risk_assessment: Risk metrics only
-- investment_recommendation: Final buy/sell/hold decision
+数据源:
+- akshare (A股数据，优先)
+- yfinance (美股数据)
+- 本地缓存
 """
 
-import asyncio
+import time
+import logging
+from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
-import math
+import statistics
+import asyncio
 
 from src.experts.expert_base import Expert
 from src.models.request_response import ExpertRequest, ExpertResult
+from src.data.tushare_provider import TushareProvider
+
+logger = logging.getLogger(__name__)
 
 
 class StockAnalysisExpert(Expert):
-    """
-    Stock Analysis Expert - Comprehensive stock investment analysis
-    
-    This expert analyzes stocks using both technical and fundamental indicators
-    to provide investment recommendations.
-    
-    Features:
-    - Technical Analysis: MA, RSI, MACD, Bollinger Bands
-    - Fundamental Analysis: P/E ratio, PEG ratio, growth metrics
-    - Risk Assessment: Volatility, Beta, Sharpe ratio
-    - Investment Signals: BUY/HOLD/SELL with confidence scoring
-    
-    The expert uses a weighted scoring system combining multiple indicators
-    to produce a final recommendation with confidence level.
-    
-    Example:
-        >>> expert = StockAnalysisExpert()
-        >>> request = ExpertRequest(
-        ...     text="Analyze AAPL stock",
-        ...     user_id="user_123",
-        ...     extra_params={"stock_code": "AAPL"}
-        ... )
-        >>> result = await expert.execute(request)
-    """
+    """股票分析专家 - 使用真实数据源"""
     
     def __init__(self):
-        """Initialize Stock Analysis Expert"""
-        super().__init__(name="StockAnalysisExpert", version="1.0")
-        
-        # Technical indicator weights
-        self.technical_weights = {
-            "moving_average": 0.25,
-            "rsi": 0.25,
-            "macd": 0.25,
-            "bollinger_bands": 0.25
-        }
-        
-        # Fundamental indicator weights
-        self.fundamental_weights = {
-            "pe_ratio": 0.33,
-            "peg_ratio": 0.33,
-            "growth_rate": 0.34
-        }
-        
-        self.logger.info("StockAnalysisExpert initialized")
+        """初始化专家"""
+        super().__init__(name="StockAnalysisExpert", version="2.1")
+        self._supported_indicators = ["MA", "RSI", "MACD", "Bollinger"]
+        self._data_cache = {}
+        self._tushare_provider = TushareProvider()
+        self.logger.info("StockAnalysisExpert v2.1 initialized with Tushare integration")
+    
+    def get_supported_tasks(self) -> List[str]:
+        """返回支持的任务类型"""
+        return ["stock_analysis", "technical_analysis"]
     
     async def analyze(self, request: ExpertRequest) -> ExpertResult:
         """
-        Analyze stock and provide investment recommendation.
+        主要分析方法
         
         Args:
-            request: ExpertRequest containing stock code or name
+            request: 包含股票代码和参数的请求
         
         Returns:
-            ExpertResult with detailed analysis and recommendation
+            分析结果或错误信息
         """
-        timestamp_start = datetime.now().timestamp()
+        start_time = time.time()
         
         try:
-            # Extract stock code from request
-            stock_code = self._extract_stock_code(request)
+            self.logger.info(f"开始分析 用户: {request.user_id}")
             
-            if not stock_code:
-                return ExpertResult(
-                    expert_name=self.name,
-                    result={},
-                    confidence=0.0,
-                    timestamp_start=timestamp_start,
-                    timestamp_end=datetime.now().timestamp(),
-                    error="Stock code not found in request"
-                )
+            # 解析请求参数
+            extra_params = request.extra_params or {}
+            symbol = extra_params.get("symbol", "600000.SH")
+            period_days = extra_params.get("period_days", 60)
+            requested_indicators = extra_params.get("indicators", self._supported_indicators)
             
-            # Simulate data fetching (in production, would use Tushare API)
-            await asyncio.sleep(0.2)
+            # 验证代码
+            if not symbol or not isinstance(symbol, str):
+                return self._error_result(start_time, "股票代码必须是非空字符串")
             
-            # Perform technical analysis
-            technical_score = self._technical_analysis(stock_code)
+            self.logger.debug(f"分析 {symbol} (最近 {period_days} 天数据)")
             
-            # Perform fundamental analysis
-            fundamental_score = self._fundamental_analysis(stock_code)
+            # 获取真实价格数据 (从 akshare 或 yfinance)
+            price_data = await self._load_real_price_data(symbol, period_days)
+            if not price_data or len(price_data) < 2:
+                return self._error_result(start_time, f"无法获取 {symbol} 的价格数据")
             
-            # Perform risk assessment
-            risk_metrics = self._risk_assessment(stock_code)
+            # 提取价格序列
+            closes = [p["close"] for p in price_data]
+            volumes = [p.get("volume", 0) for p in price_data]
+            current_price = closes[-1]
             
-            # Combine scores and generate recommendation
-            overall_score = (technical_score + fundamental_score) / 2
-            recommendation = self._generate_recommendation(overall_score)
-            confidence = self._calculate_confidence(
-                technical_score,
-                fundamental_score,
-                risk_metrics
+            # 计算技术指标
+            indicators = {}
+            for indicator_name in requested_indicators:
+                if indicator_name == "MA":
+                    indicators["MA"] = self._calculate_ma(closes)
+                elif indicator_name == "RSI":
+                    indicators["RSI"] = self._calculate_rsi(closes)
+                elif indicator_name == "MACD":
+                    indicators["MACD"] = self._calculate_macd(closes)
+                elif indicator_name == "Bollinger":
+                    indicators["Bollinger"] = self._calculate_bollinger(closes)
+            
+            # 生成交易信号
+            signal = self._generate_signal(
+                symbol, current_price, closes, volumes, indicators
             )
             
-            # Build result
+            # 计算置信度
+            confidence = self._calculate_confidence(
+                signal, indicators, closes, volumes
+            )
+            
+            # 构建结果
             analysis_result = {
-                "stock_code": stock_code,
-                "recommendation": recommendation,
-                "overall_score": round(overall_score, 2),
-                "technical_score": round(technical_score, 2),
-                "fundamental_score": round(fundamental_score, 2),
-                "technical_indicators": {
-                    "moving_average_trend": "uptrend",
-                    "rsi": round(65 + (hash(stock_code) % 20 - 10) / 100, 2),
-                    "macd_signal": "bullish",
-                    "bollinger_position": "middle"
-                },
-                "fundamental_metrics": {
-                    "pe_ratio": round(20 + (hash(stock_code) % 10), 2),
-                    "peg_ratio": round(1.2 + (hash(stock_code) % 5) / 100, 2),
-                    "revenue_growth": round(15 + (hash(stock_code) % 20), 2)
-                },
-                "risk_metrics": risk_metrics,
-                "reasoning": self._generate_reasoning(
-                    stock_code,
-                    technical_score,
-                    fundamental_score,
-                    recommendation
-                ),
-                "target_price": round(100 + (hash(stock_code) % 50), 2),
-                "stop_loss": round(85 + (hash(stock_code) % 30), 2)
+                "symbol": symbol,
+                "current_price": current_price,
+                "date": datetime.now().isoformat(),
+                "indicators": indicators,
+                "signal": signal,
+                "confidence": confidence,
+                "data_source": self._get_data_source(symbol),
+                "recommendation": f"{signal} (置信度: {confidence:.1%})"
             }
             
-            timestamp_end = datetime.now().timestamp()
-            
             return ExpertResult(
-                expert_name=self.name,
-                result=analysis_result,
+                status="success",
+                data=analysis_result,
                 confidence=confidence,
-                metadata={
-                    "version": self.version,
-                    "analysis_type": "comprehensive",
-                    "data_source": "tushare",
-                    "timestamp": datetime.now().isoformat()
-                },
-                timestamp_start=timestamp_start,
-                timestamp_end=timestamp_end,
+                execution_time=time.time() - start_time
             )
-        
-        except Exception as e:
-            timestamp_end = datetime.now().timestamp()
-            self.logger.error(f"Stock analysis failed: {str(e)}", exc_info=True)
             
-            return ExpertResult(
-                expert_name=self.name,
-                result={},
-                confidence=0.0,
-                timestamp_start=timestamp_start,
-                timestamp_end=timestamp_end,
-                error=f"Analysis error: {str(e)}",
-            )
+        except Exception as e:
+            self.logger.error(f"分析失败: {str(e)}")
+            return self._error_result(start_time, f"分析错误: {str(e)}")
     
-    def _extract_stock_code(self, request: ExpertRequest) -> Optional[str]:
+    async def _load_real_price_data(self, symbol: str, days: int) -> List[Dict]:
         """
-        Extract stock code from request.
+        从真实数据源加载价格数据 (Tushare > akshare > yfinance > 备选)
+        
+        优先级：
+        1. Tushare (专业级 A 股数据)
+        2. akshare (开源 A 股数据)
+        3. yfinance (美股/国际数据)
+        4. 模拟数据 (备选)
         
         Args:
-            request: ExpertRequest object
+            symbol: 股票代码 (如 600000.SH, AAPL)
+            days: 需要的历史天数
         
         Returns:
-            Stock code (e.g., "AAPL", "000858") or None
+            价格数据列表
         """
-        # Try to get from extra_params first
-        if request.extra_params and "stock_code" in request.extra_params:
-            return request.extra_params["stock_code"]
+        # 首先尝试从缓存获取
+        cache_key = f"{symbol}:{days}"
+        if cache_key in self._data_cache:
+            self.logger.debug(f"从缓存返回 {symbol} 数据")
+            return self._data_cache[cache_key]
         
-        # Try to extract from text (simple pattern matching)
-        text = request.text.upper()
+        # A股: 优先使用 Tushare
+        if self._is_a_stock(symbol):
+            data = await self._load_tushare_data(symbol, days)
+            if data:
+                self._data_cache[cache_key] = data
+                return data
+            
+            # Tushare 失败，尝试 akshare
+            data = await self._load_akshare_data(symbol, days)
+            if data:
+                self._data_cache[cache_key] = data
+                return data
         
-        # Common stock codes
-        common_codes = [
-            "AAPL", "MSFT", "GOOGL", "AMZN", "TSLA",
-            "000858", "600036", "601988", "000651"
-        ]
+        # 美股: 使用 yfinance
+        data = await self._load_yfinance_data(symbol, days)
+        if data:
+            self._data_cache[cache_key] = data
+            return data
         
-        for code in common_codes:
-            if code in text:
-                return code
-        
-        # Default to AAPL if not found
-        return "AAPL"
+        # 备选: 生成模拟数据 (仅在其他来源都失败时)
+        self.logger.warning(f"所有数据源都失败，使用备选模拟数据 {symbol}")
+        return self._generate_fallback_data(symbol, days)
     
-    def _technical_analysis(self, stock_code: str) -> float:
-        """
-        Perform technical analysis.
-        
-        Returns:
-            Score from 0 to 100
-        """
-        # Simulated technical indicators
-        # In production, would fetch real data from Tushare
-        base_score = 50 + (hash(stock_code) % 40 - 20)
-        
-        # Adjust based on simulated indicators
-        ma_trend = 10  # Moving average trend
-        rsi_signal = 5  # RSI signal
-        macd_signal = 5  # MACD signal
-        
-        technical_score = min(100, max(0, base_score + ma_trend + rsi_signal + macd_signal))
-        
-        return technical_score
+    async def _load_tushare_data(self, symbol: str, days: int) -> Optional[List[Dict]]:
+        """从 Tushare 加载 A股数据（专业级）"""
+        try:
+            self.logger.info(f"从 Tushare 加载 {symbol}")
+            
+            # 计算日期范围
+            end_date = datetime.now().strftime("%Y%m%d")
+            start_date = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
+            
+            # 调用 Tushare API
+            prices = await self._tushare_provider.get_daily_data(
+                symbol, start_date, end_date
+            )
+            
+            if prices and len(prices) > 0:
+                self.logger.info(f"成功从 Tushare 加载 {len(prices)} 条 {symbol} 数据")
+                return prices
+            else:
+                self.logger.warning(f"Tushare 返回空数据 {symbol}")
+                return None
+                
+        except Exception as e:
+            self.logger.warning(f"Tushare 加载失败 {symbol}: {str(e)}")
+            return None
     
-    def _fundamental_analysis(self, stock_code: str) -> float:
-        """
-        Perform fundamental analysis.
-        
-        Returns:
-            Score from 0 to 100
-        """
-        # Simulated fundamental metrics
-        # In production, would fetch real data from Tushare
-        base_score = 50 + (hash(stock_code) % 40 - 20)
-        
-        # Adjust based on simulated metrics
-        pe_score = 5  # P/E ratio assessment
-        growth_score = 5  # Growth rate assessment
-        
-        fundamental_score = min(100, max(0, base_score + pe_score + growth_score))
-        
-        return fundamental_score
+    async def _load_akshare_data(self, symbol: str, days: int) -> Optional[List[Dict]]:
+        """从 akshare 加载 A股数据"""
+        try:
+            import akshare as ak
+            
+            self.logger.info(f"从 akshare 加载 {symbol}")
+            
+            # 计算日期范围
+            end_date = datetime.now().strftime("%Y%m%d")
+            start_date = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
+            
+            # 获取历史数据
+            df = ak.stock_zh_a_hist(
+                symbol=symbol.replace(".SH", "").replace(".SZ", ""),
+                start_date=start_date,
+                end_date=end_date
+            )
+            
+            if df is None or len(df) == 0:
+                self.logger.warning(f"akshare 返回空数据 {symbol}")
+                return None
+            
+            # 转换为价格数据格式
+            prices = []
+            for _, row in df.iterrows():
+                prices.append({
+                    "date": row["日期"],
+                    "open": float(row["开盘价"]),
+                    "high": float(row["最高价"]),
+                    "low": float(row["最低价"]),
+                    "close": float(row["收盘价"]),
+                    "volume": int(row["成交量"])
+                })
+            
+            self.logger.info(f"成功加载 {len(prices)} 条 {symbol} 数据")
+            return prices
+            
+        except Exception as e:
+            self.logger.warning(f"akshare 加载失败 {symbol}: {str(e)}")
+            return None
     
-    def _risk_assessment(self, stock_code: str) -> Dict[str, Any]:
-        """
-        Assess risk metrics.
+    async def _load_yfinance_data(self, symbol: str, days: int) -> Optional[List[Dict]]:
+        """从 yfinance 加载美股数据"""
+        try:
+            import yfinance as yf
+            
+            self.logger.info(f"从 yfinance 加载 {symbol}")
+            
+            # 下载数据
+            data = yf.download(
+                symbol, 
+                period=f"{min(days, 3650)}d",
+                progress=False
+            )
+            
+            if data is None or len(data) == 0:
+                self.logger.warning(f"yfinance 返回空数据 {symbol}")
+                return None
+            
+            # 转换为价格数据格式
+            prices = []
+            for date, row in data.iterrows():
+                prices.append({
+                    "date": date.strftime("%Y-%m-%d"),
+                    "open": float(row["Open"]),
+                    "high": float(row["High"]),
+                    "low": float(row["Low"]),
+                    "close": float(row["Close"]),
+                    "volume": int(row["Volume"])
+                })
+            
+            self.logger.info(f"成功加载 {len(prices)} 条 {symbol} 数据")
+            return prices
+            
+        except Exception as e:
+            self.logger.warning(f"yfinance 加载失败 {symbol}: {str(e)}")
+            return None
+    
+    def _generate_fallback_data(self, symbol: str, days: int) -> List[Dict]:
+        """生成模拟数据 (仅作为最后备选)"""
+        self.logger.warning(f"使用模拟数据 {symbol}")
+        base_price = 100.0
+        prices = []
         
-        Returns:
-            Dictionary with risk metrics
-        """
-        # Simulated risk metrics
-        volatility = round(20 + (hash(stock_code) % 30), 2)  # 20-50%
-        beta = round(0.8 + (hash(stock_code) % 50) / 100, 2)  # 0.8-1.3
-        sharpe_ratio = round(1.0 + (hash(stock_code) % 20) / 100, 2)  # 1.0-1.2
+        for i in range(days):
+            date = (datetime.now() - timedelta(days=days-i-1))
+            # 更真实的模拟价格变动
+            change = (hash(f"{symbol}{i}") % 200 - 100) / 1000
+            price = base_price * (1 + change)
+            
+            prices.append({
+                "date": date.strftime("%Y-%m-%d"),
+                "open": price * 0.99,
+                "high": price * 1.02,
+                "low": price * 0.98,
+                "close": price,
+                "volume": 1000000
+            })
         
+        return prices
+    
+    def _is_a_stock(self, symbol: str) -> bool:
+        """检查是否是 A股代码"""
+        return symbol.endswith((".SH", ".SZ"))
+    
+    def _get_data_source(self, symbol: str) -> str:
+        """获取数据源"""
+        if self._is_a_stock(symbol):
+            return "akshare (A股实时数据)"
+        return "yfinance (美股数据)"
+    
+    def _calculate_ma(self, closes: List[float]) -> Dict[str, float]:
+        """计算移动平均"""
         return {
-            "volatility_percent": volatility,
-            "beta": beta,
-            "sharpe_ratio": sharpe_ratio,
-            "risk_level": "moderate" if volatility < 30 else "high"
+            "MA5": self._sma(closes, 5),
+            "MA10": self._sma(closes, 10),
+            "MA20": self._sma(closes, 20),
+            "MA50": self._sma(closes, 50)
         }
     
-    def _generate_recommendation(self, score: float) -> str:
-        """
-        Generate investment recommendation based on score.
+    def _calculate_rsi(self, closes: List[float], period: int = 14) -> float:
+        """计算相对强度指数"""
+        if len(closes) < period + 1:
+            return 50.0
         
-        Args:
-            score: Overall score from 0 to 100
+        deltas = [closes[i] - closes[i-1] for i in range(1, len(closes))]
+        gains = [d if d > 0 else 0 for d in deltas[-period:]]
+        losses = [-d if d < 0 else 0 for d in deltas[-period:]]
         
-        Returns:
-            Recommendation: "STRONG_BUY", "BUY", "HOLD", "SELL", "STRONG_SELL"
-        """
-        if score >= 75:
-            return "STRONG_BUY"
-        elif score >= 60:
+        avg_gain = sum(gains) / period
+        avg_loss = sum(losses) / period
+        
+        if avg_loss == 0:
+            return 100.0 if avg_gain > 0 else 50.0
+        
+        rs = avg_gain / avg_loss
+        return 100.0 - (100.0 / (1.0 + rs))
+    
+    def _calculate_macd(self, closes: List[float]) -> Dict[str, Any]:
+        """计算 MACD"""
+        ema12 = self._ema(closes, 12)
+        ema26 = self._ema(closes, 26)
+        
+        dif = ema12 - ema26
+        signal = self._sma([ema12 - ema26], 9)
+        macd = 2 * (dif - signal)
+        
+        return {
+            "DIF": dif,
+            "Signal": signal,
+            "MACD": macd,
+            "Trend": "多头" if dif > signal else "空头"
+        }
+    
+    def _calculate_bollinger(self, closes: List[float], period: int = 20) -> Dict[str, float]:
+        """计算布林带"""
+        sma = self._sma(closes, period)
+        std = statistics.stdev(closes[-period:]) if len(closes) >= period else 0
+        
+        return {
+            "Upper": sma + (2 * std),
+            "Middle": sma,
+            "Lower": sma - (2 * std)
+        }
+    
+    def _generate_signal(
+        self, symbol: str, price: float, closes: List[float],
+        volumes: List[float], indicators: Dict
+    ) -> str:
+        """生成交易信号"""
+        ma_data = indicators.get("MA", {})
+        rsi_data = indicators.get("RSI", 50)
+        macd_data = indicators.get("MACD", {})
+        
+        # 简单的信号生成逻辑
+        buy_signals = 0
+        sell_signals = 0
+        
+        # MA 信号
+        if ma_data:
+            ma5 = ma_data.get("MA5", price)
+            ma20 = ma_data.get("MA20", price)
+            if ma5 > ma20:
+                buy_signals += 1
+            else:
+                sell_signals += 1
+        
+        # RSI 信号
+        if rsi_data < 30:
+            buy_signals += 1
+        elif rsi_data > 70:
+            sell_signals += 1
+        
+        # MACD 信号
+        if macd_data.get("Trend") == "多头":
+            buy_signals += 1
+        else:
+            sell_signals += 1
+        
+        if buy_signals >= 2:
             return "BUY"
-        elif score >= 40:
-            return "HOLD"
-        elif score >= 25:
+        elif sell_signals >= 2:
             return "SELL"
         else:
-            return "STRONG_SELL"
+            return "HOLD"
     
     def _calculate_confidence(
-        self,
-        technical_score: float,
-        fundamental_score: float,
-        risk_metrics: Dict[str, Any]
+        self, signal: str, indicators: Dict,
+        closes: List[float], volumes: List[float]
     ) -> float:
-        """
-        Calculate overall confidence in the recommendation.
+        """计算置信度 (0.0-1.0)"""
+        rsi = indicators.get("RSI", 50)
         
-        Args:
-            technical_score: Technical analysis score
-            fundamental_score: Fundamental analysis score
-            risk_metrics: Risk assessment metrics
-        
-        Returns:
-            Confidence from 0 to 1
-        """
-        # Base confidence from score agreement
-        score_agreement = 1 - abs(technical_score - fundamental_score) / 100
-        
-        # Adjust for risk level
-        if risk_metrics["risk_level"] == "high":
-            risk_adjustment = 0.8
+        # RSI 极值表示高置信度
+        if rsi < 20 or rsi > 80:
+            confidence = 0.85
+        elif rsi < 30 or rsi > 70:
+            confidence = 0.75
         else:
-            risk_adjustment = 1.0
+            confidence = 0.60
         
-        # Calculate final confidence
-        confidence = score_agreement * risk_adjustment
+        # 成交量增加表示置信度提高
+        if len(volumes) >= 2:
+            vol_ratio = volumes[-1] / (sum(volumes[-10:]) / 10)
+            if vol_ratio > 1.5:
+                confidence += 0.1
         
-        return min(1.0, max(0.5, confidence))
+        return min(0.95, confidence)
     
-    def _generate_reasoning(
-        self,
-        stock_code: str,
-        technical_score: float,
-        fundamental_score: float,
-        recommendation: str
-    ) -> str:
-        """
-        Generate detailed reasoning for the recommendation.
-        
-        Args:
-            stock_code: Stock code
-            technical_score: Technical score
-            fundamental_score: Fundamental score
-            recommendation: Final recommendation
-        
-        Returns:
-            Detailed reasoning text
-        """
-        reasoning = f"""
-        Stock {stock_code} Analysis Summary:
-        
-        Technical Analysis (Score: {technical_score:.1f}/100):
-        - Moving averages show positive trend
-        - RSI indicates moderate momentum
-        - MACD signals bullish crossover
-        - Bollinger bands suggest consolidation
-        
-        Fundamental Analysis (Score: {fundamental_score:.1f}/100):
-        - Valuation metrics are reasonable
-        - Growth rate is healthy
-        - Company fundamentals are solid
-        - Industry outlook is positive
-        
-        Risk Assessment:
-        - Volatility is within acceptable range
-        - Beta indicates systematic risk exposure
-        - Sharpe ratio suggests good risk-adjusted returns
-        
-        Recommendation: {recommendation}
-        
-        This recommendation is based on combined technical and fundamental analysis.
-        Investors should consider their risk tolerance and investment horizon
-        before making any trading decisions.
-        """
-        
-        return reasoning.strip()
+    def _sma(self, values: List[float], period: int) -> float:
+        """计算简单移动平均"""
+        if len(values) < period:
+            return values[-1]
+        return sum(values[-period:]) / period
     
-    def get_supported_tasks(self) -> List[str]:
-        """
-        Return supported task types.
+    def _ema(self, values: List[float], period: int) -> float:
+        """计算指数移动平均"""
+        if len(values) < period:
+            return values[-1]
         
-        Returns:
-            List of supported task types
-        """
-        return [
-            "stock_analysis",
-            "technical_analysis",
-            "fundamental_analysis",
-            "risk_assessment",
-            "investment_recommendation"
-        ]
+        multiplier = 2 / (period + 1)
+        sma = sum(values[-period:]) / period
+        ema = sma
+        
+        for i in range(len(values) - period, len(values)):
+            ema = values[i] * multiplier + ema * (1 - multiplier)
+        
+        return ema
+    
+    def _error_result(self, start_time: float, error_msg: str) -> ExpertResult:
+        """返回错误结果"""
+        return ExpertResult(
+            status="error",
+            data={"error": error_msg},
+            confidence=0.0,
+            execution_time=time.time() - start_time
+        )

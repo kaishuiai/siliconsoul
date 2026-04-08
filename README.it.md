@@ -17,7 +17,7 @@ Lingue:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Stato aggiornamento (2026-04-08): PRD Phase 0 (batch 2) ha allineato il contratto dettaglio History (campi compatibili `expert_results`/`result`) e continua il lavoro sulla coerenza del flusso replay.
+> Stato aggiornamento (2026-04-08): PRD Phase 0 (batch 3) ha unificato i campi standard tra process/batch/replay (con compatibilità) e migliorato il riepilogo confronto in History.
 
 ## Scopo / Valore / Posizionamento / Differenziatori
 

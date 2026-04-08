@@ -17,7 +17,7 @@ Languages:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Update status (2026-04-08): PRD Phase 0 (batch 2) aligned History detail contracts by adding compatible `expert_results`/`result` fields and continues replay-chain consistency work.
+> Update status (2026-04-08): PRD Phase 0 (batch 3) unified standardized fields across process/batch/replay (with legacy compatibility) and upgraded History compare summaries.
 
 ## Purpose / Value / Positioning / Differentiators
 

@@ -67,6 +67,20 @@ python -m src.api_server.server
 - expert_results：标准化专家结果（对齐 process 输出）
 - result：标准化聚合结果（对齐 process 输出）
 
+### POST /api/history/<user_id>/<request_id>/replay
+
+返回字段（兼容模式）：
+
+- request_id / result / expert_results（标准化字段）
+- results（原始聚合对象，兼容旧调用）
+
+### POST /api/batch
+
+返回字段（兼容模式）：
+
+- results：原始批处理结果（兼容旧调用）
+- items：标准化批处理结果数组（对齐 process 输出）
+
 ### 响应 envelope（兼容模式）
 
 当前后端会同时返回以下字段以兼容新旧客户端：

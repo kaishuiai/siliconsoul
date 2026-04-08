@@ -17,7 +17,7 @@ Ngôn ngữ:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Trạng thái cập nhật (2026-04-08): PRD Phase 0 (đợt 2) đã đồng bộ contract chi tiết History (thêm trường tương thích `expert_results`/`result`) và tiếp tục chuẩn hóa luồng replay.
+> Trạng thái cập nhật (2026-04-08): PRD Phase 0 (đợt 3) đã thống nhất trường chuẩn giữa process/batch/replay (vẫn tương thích cũ) và nâng cấp tóm tắt so sánh trong History.
 
 ## Mục đích / Giá trị / Định vị / Khác biệt
 

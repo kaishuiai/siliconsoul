@@ -21,6 +21,16 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
         orchestrator: MOE orchestrator instance
     """
 
+    def _normalize_aggregated_payload(raw: Any) -> Dict[str, Any]:
+        if not isinstance(raw, dict):
+            return {"results": raw}
+        payload = dict(raw)
+        payload["request_id"] = raw.get("request_id")
+        payload["result"] = raw.get("final_result")
+        payload["expert_results"] = raw.get("expert_results", [])
+        payload["results"] = raw
+        return payload
+
     # Health Check
     @gateway.route("/api/health", methods=["GET"])
     async def health_check(body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -97,12 +107,7 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
             expert_names=expert_names,
         )
 
-        if isinstance(results, dict):
-            payload = dict(results)
-            payload["request_id"] = results.get("request_id")
-            payload["results"] = results
-            return payload
-        return {"results": results}
+        return _normalize_aggregated_payload(results)
 
     # Batch Process
     @gateway.route("/api/batch", methods=["POST"])
@@ -129,7 +134,8 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
                     )
                 )
 
-        return {"batch_id": f"batch_{orchestrator.request_count}", "results": results}
+        normalized = [_normalize_aggregated_payload(r) for r in results]
+        return {"batch_id": f"batch_{orchestrator.request_count}", "results": results, "items": normalized}
 
     # Monitor - Metrics
     @gateway.route("/api/monitor/metrics", methods=["GET"])
@@ -279,7 +285,7 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
             expert_names = [str(x) for x in expert_names if str(x)]
             expert_names = expert_names or None
 
-        return await orchestrator.process(
+        replayed = await orchestrator.process(
             record.text,
             task_type,
             record.context or {},
@@ -287,6 +293,7 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
             extra_params={"replay_of": request_id},
             expert_names=expert_names,
         )
+        return _normalize_aggregated_payload(replayed)
 
     @gateway.route("/api/portfolio/<user_id>", methods=["GET"])
     async def get_portfolio(body: Optional[Dict[str, Any]] = None, user_id: str = "") -> Dict[str, Any]:

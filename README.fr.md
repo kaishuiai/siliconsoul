@@ -17,7 +17,7 @@ Langues :
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script) : README.mn.md
 - العربية : README.ar.md
 
-> Statut de mise à jour (2026-04-08) : PRD Phase 0 (lot 2) aligne le contrat de détail History (champs compatibles `expert_results`/`result`) et poursuit la cohérence de la chaîne replay.
+> Statut de mise à jour (2026-04-08) : PRD Phase 0 (lot 3) unifie les champs standard process/batch/replay (avec compatibilité) et améliore le résumé de comparaison dans History.
 
 ## Usage / Valeur / Positionnement / Différences
 

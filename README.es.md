@@ -17,7 +17,7 @@ Idiomas:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Estado de actualización (2026-04-08): PRD Fase 0 (lote 2) alineó el contrato de detalle de History (campos compatibles `expert_results`/`result`) y sigue mejorando la consistencia del flujo replay.
+> Estado de actualización (2026-04-08): PRD Fase 0 (lote 3) unificó campos estandarizados en process/batch/replay (con compatibilidad) y mejoró el resumen de comparación en History.
 
 ## Uso / Valor / Posicionamiento / Diferenciadores
 

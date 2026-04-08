@@ -124,3 +124,4 @@ async def test_history_replay_endpoint(monkeypatch):
     assert resp["data"]["task_type"] == "stock_analysis"
     assert resp["data"]["context"] == {"a": 1}
     assert resp["data"]["expert_names"] == ["DemoExpert"]
+    assert resp["data"]["results"]["request_id"] == "new_req"

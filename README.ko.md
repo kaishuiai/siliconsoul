@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> 업데이트 상태(2026-04-08): PRD Phase 0(2차 배치)에서 History 상세 계약을 정렬했고(호환 필드 `expert_results`/`result` 추가), replay 체인 일관성 개선을 계속 진행 중입니다.
+> 업데이트 상태(2026-04-08): PRD Phase 0(3차 배치)에서 process/batch/replay 표준 필드를 통합(호환 유지)했고, History 비교 요약을 개선했습니다.
 
 ## 용도 / 가치 / 포지셔닝 / 차별점
 

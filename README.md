@@ -17,7 +17,7 @@ README Languages:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ（Mongolian, traditional script）：[README.mn.md](README.mn.md)
 - العربية：[README.ar.md](README.ar.md)
 
-> 更新状态（2026-04-08）：PRD Phase 0（第二批）已完成 History 详情口径对齐（新增 expert_results/result 兼容字段），继续推进复盘链路一致性。
+> 更新状态（2026-04-08）：PRD Phase 0（第三批）已完成 process/batch/replay 统一标准化字段（兼容旧结构）与 History 对比摘要升级。
 
 ## 项目用途 / 价值 / 定位 / 差异点
 

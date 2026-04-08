@@ -253,6 +253,24 @@ const History: React.FC = () => {
     return ds;
   }, [selectedDiffs, diffKinds, diffOnlyConfidenceDelta, diffConfidenceThresholdPct]);
 
+  const compareSummary = useMemo(() => {
+    const oldAgg = compareOldAgg?.result || {};
+    const newAgg = compareNewAgg?.result || {};
+    const oldConf = typeof oldAgg.overall_confidence === 'number' ? oldAgg.overall_confidence : null;
+    const newConf = typeof newAgg.overall_confidence === 'number' ? newAgg.overall_confidence : null;
+    const confidenceDeltaPct = oldConf !== null && newConf !== null ? Math.round((newConf - oldConf) * 10000) / 100 : null;
+    const consensusChanged = (oldAgg.consensus_level || null) !== (newAgg.consensus_level || null);
+    const finalResultChanged = JSON.stringify(oldAgg.final_result ?? null) !== JSON.stringify(newAgg.final_result ?? null);
+    return {
+      confidenceDeltaPct,
+      consensusChanged,
+      oldConsensus: oldAgg.consensus_level || '-',
+      newConsensus: newAgg.consensus_level || '-',
+      finalResultChanged,
+      changeCount: visibleDiffs.length,
+    };
+  }, [compareOldAgg, compareNewAgg, visibleDiffs]);
+
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -653,6 +671,19 @@ const History: React.FC = () => {
                     >
                       退出对比
                     </button>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
+                    <div className="text-sm font-semibold text-blue-700">变更摘要</div>
+                    <div className="text-xs text-gray-700 mt-2">
+                      一致性：{compareSummary.oldConsensus} → {compareSummary.newConsensus}
+                      {compareSummary.consensusChanged ? '（发生变化）' : '（无变化）'}
+                    </div>
+                    <div className="text-xs text-gray-700 mt-1">
+                      置信度变化：{compareSummary.confidenceDeltaPct == null ? '-' : `${compareSummary.confidenceDeltaPct > 0 ? '+' : ''}${compareSummary.confidenceDeltaPct}%`}
+                    </div>
+                    <div className="text-xs text-gray-700 mt-1">
+                      结论变化：{compareSummary.finalResultChanged ? '有变化' : '无变化'} · 差异条数：{compareSummary.changeCount}
+                    </div>
                   </div>
                   <div className="border rounded p-3 mb-4">
                     <div className="flex flex-col md:flex-row gap-3 md:items-center mb-2">

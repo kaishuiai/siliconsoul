@@ -59,11 +59,14 @@ async def test_gateway_process_and_batch_and_config():
     assert resp["status"] == "success"
     assert resp["data"]["results"]["echo"] == "hi"
     assert resp["data"]["echo"] == "hi"
+    assert "result" in resp["data"]
+    assert "expert_results" in resp["data"]
 
     resp = await gateway.handle_request("POST", "/api/batch", {"requests": [{"text": "a"}, {"text": "b"}]})
     assert resp["status"] == "success"
     assert len(resp["data"]["results"]) == 2
     assert "echo" in resp["data"]["results"][0]
+    assert len(resp["data"]["items"]) == 2
 
     resp = await gateway.handle_request("GET", "/api/config", None)
     assert resp["status"] == "success"

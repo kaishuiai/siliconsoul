@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ（Mongolian, traditional script）：README.mn.md
 - العربية：README.ar.md
 
-> 更新狀態（2026-04-08）：PRD Phase 0（第二批）已完成 History 詳情口徑對齊（新增 expert_results/result 相容欄位），持續推進復盤鏈路一致性。
+> 更新狀態（2026-04-08）：PRD Phase 0（第三批）已完成 process/batch/replay 標準化欄位統一（相容舊結構）與 History 對比摘要升級。
 
 ## 專案用途 / 價值 / 定位 / 差異點
 

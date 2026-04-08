@@ -17,7 +17,7 @@ Langues :
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script) : README.mn.md
 - العربية : README.ar.md
 
-> Statut de mise à jour (2026-04-08) : démarrage de la PRD Phase 0 « contract convergence », avec alignement compatible des réponses API et des champs de base health/monitor.
+> Statut de mise à jour (2026-04-08) : PRD Phase 0 (lot 2) aligne le contrat de détail History (champs compatibles `expert_results`/`result`) et poursuit la cohérence de la chaîne replay.
 
 ## Usage / Valeur / Positionnement / Différences
 

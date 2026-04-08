@@ -17,7 +17,7 @@ Languages:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Update status (2026-04-08): PRD Phase 0 “contract convergence” is in progress, including compatible API envelope alignment and health/monitor baseline fields.
+> Update status (2026-04-08): PRD Phase 0 (batch 2) aligned History detail contracts by adding compatible `expert_results`/`result` fields and continues replay-chain consistency work.
 
 ## Purpose / Value / Positioning / Differentiators
 

@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> حالة التحديث (2026-04-08): تم بدء PRD Phase 0 "contract convergence" لتوحيد غلاف الاستجابات في API (وضع متوافق) واستكمال حقول health/monitor الأساسية.
+> حالة التحديث (2026-04-08): في PRD Phase 0 (الدفعة الثانية) تم توحيد عقد تفاصيل History بإضافة الحقول المتوافقة `expert_results`/`result`، مع الاستمرار في تحسين اتساق سلسلة replay.
 
 ## الاستخدام / القيمة / التموضع / نقاط التميّز
 

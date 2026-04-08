@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> 업데이트 상태(2026-04-08): PRD Phase 0 “contract convergence”를 시작했으며, API 응답 포맷(호환 모드)과 health/monitor 기본 필드를 정렬 중입니다.
+> 업데이트 상태(2026-04-08): PRD Phase 0(2차 배치)에서 History 상세 계약을 정렬했고(호환 필드 `expert_results`/`result` 추가), replay 체인 일관성 개선을 계속 진행 중입니다.
 
 ## 용도 / 가치 / 포지셔닝 / 차별점
 

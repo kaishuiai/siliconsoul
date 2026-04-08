@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ（Mongolian, traditional script）：README.mn.md
 - العربية：README.ar.md
 
-> 更新狀態（2026-04-08）：已進入 PRD Phase 0「契約收斂」，統一 API 回傳口徑（相容模式）並補齊 health/monitor 基礎欄位。
+> 更新狀態（2026-04-08）：PRD Phase 0（第二批）已完成 History 詳情口徑對齊（新增 expert_results/result 相容欄位），持續推進復盤鏈路一致性。
 
 ## 專案用途 / 價值 / 定位 / 差異點
 

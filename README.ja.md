@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> 更新状況（2026-04-08）：PRD Phase 0「contract convergence」を開始し、API レスポンス（互換モード）と health/monitor の基礎項目を整合中です。
+> 更新状況（2026-04-08）：PRD Phase 0（第2バッチ）で History 詳細の契約を整合（互換フィールド `expert_results`/`result` を追加）し、replay チェーンの一貫性を継続改善中です。
 
 ## 用途 / 価値 / 位置づけ / 差別化
 

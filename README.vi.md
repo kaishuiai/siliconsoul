@@ -17,7 +17,7 @@ Ngôn ngữ:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Trạng thái cập nhật (2026-04-08): đã bắt đầu PRD Phase 0 “contract convergence”, chuẩn hóa response API (chế độ tương thích) và bổ sung trường nền tảng cho health/monitor.
+> Trạng thái cập nhật (2026-04-08): PRD Phase 0 (đợt 2) đã đồng bộ contract chi tiết History (thêm trường tương thích `expert_results`/`result`) và tiếp tục chuẩn hóa luồng replay.
 
 ## Mục đích / Giá trị / Định vị / Khác biệt
 

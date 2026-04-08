@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Update status (2026-04-08): PRD Phase 0 “contract convergence” is in progress.
+> Update status (2026-04-08): PRD Phase 0 (batch 2) aligned History detail contracts with compatible `expert_results`/`result` fields.
 
 ## ᠵᠣᠷᠢᠯᠭᠠ / ᠠᠴᠠ ᠲᠤᠰ / ᠪᠠᠢᠷᠢᠯᠠᠯ / ᠢᠯᠭᠠᠯᠲᠠ
 

@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ（Mongolian, traditional script）：README.mn.md
 - العربية：README.ar.md
 
-> 更新状态（2026-04-08）：已进入 PRD Phase 0「契约收敛」，统一 API 返回口径（兼容模式）并补齐 health/monitor 基础字段。
+> 更新状态（2026-04-08）：PRD Phase 0（第二批）已完成 History 详情口径对齐（新增 expert_results/result 兼容字段），继续推进复盘链路一致性。
 
 ## 项目用途 / 价值 / 定位 / 差异点
 

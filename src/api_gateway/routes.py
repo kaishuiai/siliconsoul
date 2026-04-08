@@ -25,7 +25,8 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
     @gateway.route("/api/health", methods=["GET"])
     async def health_check(body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Health check endpoint"""
-        monitor_status = orchestrator.monitor.get_status() if hasattr(orchestrator, "monitor") else {}
+        monitor = getattr(orchestrator, "monitor", None)
+        monitor_status = monitor.get_status() if monitor is not None and hasattr(monitor, "get_status") else {}
         version = "1.0.0"
         if hasattr(orchestrator, "config_manager"):
             version = str(orchestrator.config_manager.get("system.version", version))
@@ -134,7 +135,10 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
     @gateway.route("/api/monitor/metrics", methods=["GET"])
     async def get_metrics(body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Get system metrics"""
-        out = orchestrator.monitor.get_metrics()
+        monitor = getattr(orchestrator, "monitor", None)
+        if monitor is None or not hasattr(monitor, "get_metrics"):
+            return {}
+        out = monitor.get_metrics()
         if isinstance(out, dict):
             metrics = out.get("metrics")
             if isinstance(metrics, dict):
@@ -145,13 +149,19 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
     @gateway.route("/api/monitor/status", methods=["GET"])
     async def get_monitor_status(body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Get system status"""
-        return orchestrator.monitor.get_status()
+        monitor = getattr(orchestrator, "monitor", None)
+        if monitor is None or not hasattr(monitor, "get_status"):
+            return {}
+        return monitor.get_status()
 
     # Monitor - Stats
     @gateway.route("/api/monitor/stats", methods=["GET"])
     async def get_stats(body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Get system statistics"""
-        return orchestrator.monitor.get_metrics()
+        monitor = getattr(orchestrator, "monitor", None)
+        if monitor is None or not hasattr(monitor, "get_metrics"):
+            return {"status": {}, "metrics": {}}
+        return monitor.get_metrics()
 
     # Config - Get
     @gateway.route("/api/config", methods=["GET"])
@@ -214,15 +224,36 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
         results = sm.get_results(request_id)
         aggregated = None
         normalized = []
+        expert_results = []
         for r in results:
             name = r.expert_name if hasattr(r, "expert_name") else r.get("expert_name")
+            row = r.to_dict() if hasattr(r, "to_dict") else r
             if name == "__aggregated__":
-                aggregated = r.to_dict() if hasattr(r, "to_dict") else r
-            normalized.append(r.to_dict() if hasattr(r, "to_dict") else r)
+                aggregated = row
+            normalized.append(row)
+            if name == "__aggregated__":
+                continue
+            ts = row.get("timestamp")
+            duration_ms = float(row.get("duration_ms") or 0.0)
+            expert_results.append(
+                {
+                    "expert_name": name,
+                    "result": row.get("result"),
+                    "confidence": row.get("confidence", 0.5),
+                    "metadata": {"result_id": row.get("result_id"), "request_id": row.get("request_id")},
+                    "timestamp_start": ts,
+                    "timestamp_end": ts,
+                    "duration_ms": duration_ms,
+                    "error": row.get("error"),
+                }
+            )
+        aggregated_result = aggregated.get("result") if isinstance(aggregated, dict) else None
         return {
             "request": record.to_dict(),
             "results": normalized,
             "aggregated": aggregated,
+            "expert_results": expert_results,
+            "result": aggregated_result,
         }
 
     @gateway.route("/api/history/<user_id>/<request_id>/replay", methods=["POST"])

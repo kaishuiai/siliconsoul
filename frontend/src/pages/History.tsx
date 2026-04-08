@@ -37,6 +37,7 @@ const History: React.FC = () => {
   const canQuery = useMemo(() => !!userId, [userId]);
 
   const aggregated = useMemo(() => {
+    if (selected?.result) return { result: selected.result };
     if (selected?.aggregated) return selected.aggregated;
     if (!selected?.results) return null;
     return selected.results.find((r: any) => r.expert_name === '__aggregated__') || null;
@@ -44,6 +45,7 @@ const History: React.FC = () => {
 
   const compareOldAgg = useMemo(() => {
     if (!compareOld) return null;
+    if (compareOld?.result) return { result: compareOld.result };
     if (compareOld?.aggregated) return compareOld.aggregated;
     if (!compareOld?.results) return null;
     return compareOld.results.find((r: any) => r.expert_name === '__aggregated__') || null;
@@ -51,12 +53,14 @@ const History: React.FC = () => {
 
   const compareNewAgg = useMemo(() => {
     if (!compareNew) return null;
+    if (compareNew?.result) return { result: compareNew.result };
     if (compareNew?.aggregated) return compareNew.aggregated;
     if (!compareNew?.results) return null;
     return compareNew.results.find((r: any) => r.expert_name === '__aggregated__') || null;
   }, [compareNew]);
 
   const expertResults = useMemo(() => {
+    if (Array.isArray(selected?.expert_results)) return selected.expert_results;
     if (!selected?.results) return [];
     return selected.results.filter((r: any) => r.expert_name !== '__aggregated__');
   }, [selected]);

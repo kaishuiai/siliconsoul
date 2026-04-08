@@ -57,6 +57,16 @@ python -m src.api_server.server
 - only_errors：true/false
 - since/until：ISO 时间范围
 
+### GET /api/history/<user_id>/<request_id>
+
+返回字段（兼容模式）：
+
+- request：请求记录
+- results：原始结果记录（兼容老结构）
+- aggregated：聚合记录（兼容老结构）
+- expert_results：标准化专家结果（对齐 process 输出）
+- result：标准化聚合结果（对齐 process 输出）
+
 ### 响应 envelope（兼容模式）
 
 当前后端会同时返回以下字段以兼容新旧客户端：

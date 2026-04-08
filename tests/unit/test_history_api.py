@@ -89,6 +89,8 @@ async def test_me_and_history_endpoints():
     assert resp["status"] == "success"
     assert resp["data"]["request"]["request_id"] == request_id
     assert len(resp["data"]["results"]) == 2
+    assert isinstance(resp["data"].get("expert_results"), list)
+    assert isinstance(resp["data"].get("result"), dict)
 
 
 @pytest.mark.asyncio

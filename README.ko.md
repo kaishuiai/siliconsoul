@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> 업데이트 상태(2026-04-08): PRD Phase 1(2차 배치)에서 Replay Chain 뷰와 비교 리포트 Markdown 내보내기를 추가해 복기 결과를 추적·공유하기 쉽게 했습니다.
+> 업데이트 상태(2026-04-08): PRD Phase 1(3차 배치)에서 체인 통계와 최대 변화 노드 원클릭 이동을 추가해 복기 효율을 높였습니다.
 
 ## 용도 / 가치 / 포지셔닝 / 차별점
 

@@ -77,6 +77,7 @@ python -m src.api_server.server
 - root_id：链路根请求 ID
 - lineage：从根到当前的线性链路
 - descendants：从根向下的后代请求（按时间排序）
+- stats：链路统计（节点数、深度、一致性分布、置信度极值节点）
 
 ### POST /api/history/<user_id>/<request_id>/replay
 

@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ（Mongolian, traditional script）：README.mn.md
 - العربية：README.ar.md
 
-> 更新狀態（2026-04-08）：PRD Phase 1（第二批）已上線 Replay Chain 視圖與對比報告 MD 匯出，復盤鏈路可追蹤、可分享。
+> 更新狀態（2026-04-08）：PRD Phase 1（第三批）已上線鏈路統計與「最大變化節點」一鍵跳轉，復盤效率再提升。
 
 ## 專案用途 / 價值 / 定位 / 差異點
 

@@ -151,3 +151,5 @@ async def test_history_chain_endpoint():
     lineage_ids = [x["request_id"] for x in resp["data"]["lineage"]]
     assert lineage_ids == [root_id, child_id, grand_id]
     assert any(x.get("request_id") == child_id for x in resp["data"]["descendants"])
+    assert isinstance(resp["data"].get("stats"), dict)
+    assert resp["data"]["stats"]["lineage_nodes"] == 3

@@ -17,7 +17,7 @@ Ngôn ngữ:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Trạng thái cập nhật (2026-04-08): PRD Phase 1 (đợt 2) đã có Replay Chain view và xuất compare-report dạng Markdown để truy vết và chia sẻ vòng rà soát.
+> Trạng thái cập nhật (2026-04-08): PRD Phase 1 (đợt 3) bổ sung thống kê chain và nhảy một chạm tới node có thay đổi lớn nhất để rà soát nhanh hơn.
 
 ## Mục đích / Giá trị / Định vị / Khác biệt
 

@@ -311,6 +311,39 @@ const History: React.FC = () => {
     };
   }, [compareOldAgg, compareNewAgg, visibleDiffs]);
 
+  const chainInsights = useMemo(() => {
+    if (!chainData) return null;
+    const lineage = Array.isArray(chainData.lineage) ? chainData.lineage : [];
+    const descendants = Array.isArray(chainData.descendants) ? chainData.descendants : [];
+    const all = [...lineage, ...descendants];
+    const totalNodes = all.length;
+    const replayNodes = all.filter((x: any) => !!x.replay_of).length;
+    const stats = chainData.stats || {};
+    const consensusCounts = stats.consensus_counts || {};
+    let maxDeltaNode: any = null;
+    let maxDelta = -1;
+    for (let i = 1; i < lineage.length; i += 1) {
+      const a = lineage[i - 1]?.overall_confidence;
+      const b = lineage[i]?.overall_confidence;
+      if (typeof a !== 'number' || typeof b !== 'number') continue;
+      const d = Math.abs(b - a);
+      if (d > maxDelta) {
+        maxDelta = d;
+        maxDeltaNode = lineage[i];
+      }
+    }
+    return {
+      totalNodes,
+      replayNodes,
+      maxDepth: stats.max_depth ?? Math.max(0, lineage.length - 1),
+      consensusCounts,
+      maxConfidenceNodeId: stats.max_confidence_node?.request_id || null,
+      minConfidenceNodeId: stats.min_confidence_node?.request_id || null,
+      maxDeltaNodeId: maxDeltaNode?.request_id || null,
+      maxDeltaPct: maxDelta >= 0 ? Math.round(maxDelta * 10000) / 100 : null,
+    };
+  }, [chainData]);
+
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -723,30 +756,53 @@ const History: React.FC = () => {
                 <div className="border rounded p-4">
                   <div className="flex justify-between items-center mb-3">
                     <div className="text-xs text-gray-500">Replay Chain</div>
-                    <button
-                      className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200"
-                      onClick={async () => {
-                        const payload = JSON.stringify(chainData, null, 2);
-                        const blob = new Blob([payload], { type: 'application/json;charset=utf-8' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `chain_${chainData.request_id || 'request'}.json`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                      }}
-                    >
-                      下载链路JSON
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 disabled:opacity-50"
+                        disabled={!chainInsights?.maxDeltaNodeId}
+                        onClick={() => {
+                          if (chainInsights?.maxDeltaNodeId) loadDetail(chainInsights.maxDeltaNodeId);
+                        }}
+                      >
+                        跳转最大变化节点
+                      </button>
+                      <button
+                        className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200"
+                        onClick={async () => {
+                          const payload = JSON.stringify(chainData, null, 2);
+                          const blob = new Blob([payload], { type: 'application/json;charset=utf-8' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `chain_${chainData.request_id || 'request'}.json`;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                        }}
+                      >
+                        下载链路JSON
+                      </button>
+                    </div>
                   </div>
                   <div className="text-xs text-gray-700 mb-2">root_id: {chainData.root_id}</div>
+                  <div className="bg-indigo-50 border border-indigo-200 rounded p-3 mb-3">
+                    <div className="text-sm font-semibold text-indigo-700">链路摘要</div>
+                    <div className="text-xs text-gray-700 mt-2">
+                      节点数：{chainInsights?.totalNodes ?? '-'}（replay: {chainInsights?.replayNodes ?? '-'}) · 最大深度：{chainInsights?.maxDepth ?? '-'}
+                    </div>
+                    <div className="text-xs text-gray-700 mt-1">
+                      一致性分布：{Object.entries(chainInsights?.consensusCounts || {}).map(([k, v]) => `${k}:${v}`).join(' / ') || '-'}
+                    </div>
+                    <div className="text-xs text-gray-700 mt-1">
+                      最大变化节点：{chainInsights?.maxDeltaNodeId || '-'}{chainInsights?.maxDeltaPct != null ? `（Δ${chainInsights.maxDeltaPct}%）` : ''}
+                    </div>
+                  </div>
                   <div className="space-y-2 mb-3">
                     {(chainData.lineage || []).map((it: any) => (
                       <button
                         key={it.request_id}
-                        className="w-full text-left border rounded p-2 hover:bg-gray-50"
+                        className={`w-full text-left border rounded p-2 hover:bg-gray-50 ${it.request_id === chainInsights?.maxDeltaNodeId ? 'border-orange-300 bg-orange-50' : ''} ${it.request_id === chainInsights?.maxConfidenceNodeId ? 'ring-1 ring-green-300' : ''}`}
                         onClick={() => loadDetail(it.request_id)}
                       >
                         <div className="text-xs text-gray-500">{it.timestamp}</div>
@@ -760,7 +816,7 @@ const History: React.FC = () => {
                     {(chainData.descendants || []).slice(0, 30).map((it: any) => (
                       <button
                         key={it.request_id}
-                        className="w-full text-left border rounded p-2 hover:bg-gray-50"
+                        className={`w-full text-left border rounded p-2 hover:bg-gray-50 ${it.request_id === chainInsights?.maxDeltaNodeId ? 'border-orange-300 bg-orange-50' : ''} ${it.request_id === chainInsights?.maxConfidenceNodeId ? 'ring-1 ring-green-300' : ''}`}
                         onClick={() => loadDetail(it.request_id)}
                       >
                         <div className="text-xs text-gray-500">{it.timestamp}</div>

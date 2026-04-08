@@ -292,6 +292,24 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
         current = sm.get_request(request_id)
         if current is None:
             raise ValueError("request not found")
+        def _attach_aggregated_fields(row: Dict[str, Any]) -> Dict[str, Any]:
+            req_id = row.get("request_id")
+            if not req_id:
+                return row
+            all_results = sm.get_results(req_id)
+            aggregated_row = None
+            for rr in all_results:
+                name = rr.expert_name if hasattr(rr, "expert_name") else rr.get("expert_name")
+                if name == "__aggregated__":
+                    aggregated_row = rr.to_dict() if hasattr(rr, "to_dict") else rr
+                    break
+            if isinstance(aggregated_row, dict):
+                agg_result = aggregated_row.get("result")
+                if isinstance(agg_result, dict):
+                    row["consensus_level"] = agg_result.get("consensus_level")
+                    row["overall_confidence"] = agg_result.get("overall_confidence")
+            return row
+
         visited = set()
         chain = []
         root_id = request_id
@@ -302,6 +320,7 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
             if rec is None:
                 break
             row = rec.to_dict() if hasattr(rec, "to_dict") else rec
+            row = _attach_aggregated_fields(row)
             row["depth"] = len(chain)
             chain.append(row)
             parent = None
@@ -330,7 +349,25 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
                 descendants.append(c)
                 queue.append(cid)
         descendants.sort(key=lambda x: str(x.get("timestamp", "")))
-        return {"request_id": request_id, "root_id": root_id, "lineage": chain, "descendants": descendants}
+        all_nodes = [*chain, *descendants]
+        confidence_nodes = [n for n in all_nodes if isinstance(n.get("overall_confidence"), (int, float))]
+        consensus_counts: Dict[str, int] = {}
+        for n in all_nodes:
+            c = str(n.get("consensus_level") or "none")
+            consensus_counts[c] = consensus_counts.get(c, 0) + 1
+        stats = {
+            "total_nodes": len(all_nodes),
+            "lineage_nodes": len(chain),
+            "descendant_nodes": len(descendants),
+            "max_depth": max([int(x.get("depth", 0)) for x in chain], default=0),
+            "consensus_counts": consensus_counts,
+        }
+        if confidence_nodes:
+            max_conf = max(confidence_nodes, key=lambda x: float(x.get("overall_confidence")))
+            min_conf = min(confidence_nodes, key=lambda x: float(x.get("overall_confidence")))
+            stats["max_confidence_node"] = {"request_id": max_conf.get("request_id"), "value": max_conf.get("overall_confidence")}
+            stats["min_confidence_node"] = {"request_id": min_conf.get("request_id"), "value": min_conf.get("overall_confidence")}
+        return {"request_id": request_id, "root_id": root_id, "lineage": chain, "descendants": descendants, "stats": stats}
 
     @gateway.route("/api/history/<user_id>/<request_id>/replay", methods=["POST"])
     async def replay_history(

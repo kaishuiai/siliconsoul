@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ（Mongolian, traditional script）：README.mn.md
 - العربية：README.ar.md
 
-> 更新状态（2026-04-08）：PRD Phase 1（第二批）已上线 Replay Chain 视图与对比报告 MD 导出，复盘链路可追踪、可分享。
+> 更新状态（2026-04-08）：PRD Phase 1（第三批）已上线链路统计与“最大变化节点”一键跳转，复盘效率进一步提升。
 
 ## 项目用途 / 价值 / 定位 / 差异点
 

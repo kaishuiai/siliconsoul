@@ -17,7 +17,7 @@ Lingue:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Stato aggiornamento (2026-04-08): PRD Phase 1 (batch 2) introduce la vista Replay Chain e l’export Markdown del compare-report per review tracciabili e condivisibili.
+> Stato aggiornamento (2026-04-08): PRD Phase 1 (batch 3) aggiunge statistiche di catena e salto one-click al nodo con variazione massima per review più rapide.
 
 ## Scopo / Valore / Posizionamento / Differenziatori
 

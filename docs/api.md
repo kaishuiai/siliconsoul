@@ -59,6 +59,13 @@ python -m src.api_server.server
 - only_errors：true/false
 - since/until：ISO 时间范围
 
+### GET /api/history/roots/<user_id>
+
+返回字段：
+
+- items：按 root 聚合的请求链摘要（latest_request_id/latest_timestamp/total_nodes/replay_nodes/max_depth）
+- total_roots：根请求总数
+
 ### GET /api/history/<user_id>/<request_id>
 
 返回字段（兼容模式）：

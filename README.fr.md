@@ -17,7 +17,7 @@ Langues :
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script) : README.mn.md
 - العربية : README.ar.md
 
-> Statut de mise à jour (2026-04-08) : PRD Phase 1 (lot 3) ajoute des statistiques de chaîne et un saut en un clic vers le nœud avec le plus grand changement.
+> Statut de mise à jour (2026-04-08) : PRD Phase 1 (lot 4) ajoute un workspace des requêtes racines et une navigation Top changements pour une revue au niveau de la chaîne.
 
 ## Usage / Valeur / Positionnement / Différences
 

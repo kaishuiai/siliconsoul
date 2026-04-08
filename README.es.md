@@ -17,7 +17,7 @@ Idiomas:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Estado de actualización (2026-04-08): PRD Fase 1 (lote 3) añade métricas de cadena y salto de un clic al nodo con mayor cambio para acelerar la revisión.
+> Estado de actualización (2026-04-08): PRD Fase 1 (lote 4) añade un workspace de solicitudes raíz y navegación Top de cambios para revisión a nivel de cadena.
 
 ## Uso / Valor / Posicionamiento / Diferenciadores
 

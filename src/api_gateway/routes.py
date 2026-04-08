@@ -239,6 +239,109 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
             )
         }
 
+    @gateway.route("/api/history/roots/<user_id>", methods=["GET"])
+    async def get_history_roots(body: Optional[Dict[str, Any]] = None, user_id: str = "") -> Dict[str, Any]:
+        sm = orchestrator.storage_manager
+        params = body or {}
+        q = params.get("q")
+        task_type = params.get("task_type")
+        expert_name = params.get("expert_name")
+        since = params.get("since")
+        until = params.get("until")
+        top_n = int(params.get("top_n", 50) or 50)
+        scan_limit = min(int(params.get("scan_limit", 2000) or 2000), 5000)
+        items = []
+        offset = 0
+        page_size = 200
+        while offset < scan_limit:
+            page = sm.list_requests(
+                user_id=user_id,
+                q=q,
+                expert_name=expert_name,
+                task_type=task_type,
+                since=since,
+                until=until,
+                limit=page_size,
+                offset=offset,
+            )
+            if not page:
+                break
+            items.extend(page)
+            if len(page) < page_size:
+                break
+            offset += page_size
+
+        parent_cache: Dict[str, Optional[str]] = {}
+
+        def _parent_of(req_id: str) -> Optional[str]:
+            if req_id in parent_cache:
+                return parent_cache[req_id]
+            rec = sm.get_request(req_id)
+            parent = None
+            if rec is not None:
+                row = rec.to_dict() if hasattr(rec, "to_dict") else rec
+                ctx = row.get("context")
+                if isinstance(ctx, dict):
+                    meta = ctx.get("_meta")
+                    if isinstance(meta, dict):
+                        parent = meta.get("replay_of")
+            parent_cache[req_id] = parent
+            return parent
+
+        def _root_of(req_id: str) -> str:
+            cur = req_id
+            visited = set()
+            while cur and cur not in visited:
+                visited.add(cur)
+                parent = _parent_of(cur)
+                if not parent:
+                    return cur
+                cur = parent
+            return req_id
+
+        roots: Dict[str, Dict[str, Any]] = {}
+        for it in items:
+            rid = it.get("request_id")
+            if not rid:
+                continue
+            root_id = _root_of(rid)
+            g = roots.get(root_id)
+            if g is None:
+                g = {
+                    "root_id": root_id,
+                    "latest_request_id": rid,
+                    "latest_timestamp": it.get("timestamp"),
+                    "latest_text": it.get("text"),
+                    "total_nodes": 0,
+                    "replay_nodes": 0,
+                    "max_depth": 0,
+                    "consensus_counts": {},
+                }
+                roots[root_id] = g
+            g["total_nodes"] += 1
+            if it.get("replay_of"):
+                g["replay_nodes"] += 1
+            depth = 0
+            p = _parent_of(rid)
+            while p:
+                depth += 1
+                p = _parent_of(p)
+                if depth > 50:
+                    break
+            if depth > g["max_depth"]:
+                g["max_depth"] = depth
+            ts = str(it.get("timestamp") or "")
+            if str(g.get("latest_timestamp") or "") <= ts:
+                g["latest_timestamp"] = it.get("timestamp")
+                g["latest_request_id"] = rid
+                g["latest_text"] = it.get("text")
+            cc = str(it.get("consensus_level") or "none")
+            g["consensus_counts"][cc] = g["consensus_counts"].get(cc, 0) + 1
+
+        out = list(roots.values())
+        out.sort(key=lambda x: str(x.get("latest_timestamp", "")), reverse=True)
+        return {"items": out[:top_n], "total_roots": len(out)}
+
     @gateway.route("/api/history/<user_id>/<request_id>", methods=["GET"])
     async def get_history_detail(
         body: Optional[Dict[str, Any]] = None, user_id: str = "", request_id: str = ""

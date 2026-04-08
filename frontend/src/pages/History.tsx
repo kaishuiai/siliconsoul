@@ -19,6 +19,7 @@ const History: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
   const [selected, setSelected] = useState<any | null>(null);
   const [chainData, setChainData] = useState<any | null>(null);
+  const [rootBoard, setRootBoard] = useState<{ items: any[]; total_roots: number } | null>(null);
   const [expertOptions, setExpertOptions] = useState<string[]>([]);
   const [detailExpertName, setDetailExpertName] = useState<string>('');
   const [detailOnlyErrors, setDetailOnlyErrors] = useState<boolean>(false);
@@ -322,16 +323,19 @@ const History: React.FC = () => {
     const consensusCounts = stats.consensus_counts || {};
     let maxDeltaNode: any = null;
     let maxDelta = -1;
+    const edgeDiffs: Array<{ request_id: string; delta_pct: number }> = [];
     for (let i = 1; i < lineage.length; i += 1) {
       const a = lineage[i - 1]?.overall_confidence;
       const b = lineage[i]?.overall_confidence;
       if (typeof a !== 'number' || typeof b !== 'number') continue;
       const d = Math.abs(b - a);
+      edgeDiffs.push({ request_id: lineage[i]?.request_id, delta_pct: Math.round(d * 10000) / 100 });
       if (d > maxDelta) {
         maxDelta = d;
         maxDeltaNode = lineage[i];
       }
     }
+    edgeDiffs.sort((x, y) => y.delta_pct - x.delta_pct);
     return {
       totalNodes,
       replayNodes,
@@ -341,6 +345,7 @@ const History: React.FC = () => {
       minConfidenceNodeId: stats.min_confidence_node?.request_id || null,
       maxDeltaNodeId: maxDeltaNode?.request_id || null,
       maxDeltaPct: maxDelta >= 0 ? Math.round(maxDelta * 10000) / 100 : null,
+      topDeltaNodes: edgeDiffs.slice(0, 5),
     };
   }, [chainData]);
 
@@ -398,6 +403,20 @@ const History: React.FC = () => {
       setItems(resp.items || []);
     } catch (e: any) {
       setError(e?.message || '加载失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadRootBoard = async () => {
+    if (!canQuery) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const resp = await historyAPI.roots(userId, q, taskType, expertName, 50);
+      setRootBoard(resp);
+    } catch (e: any) {
+      setError(e?.message || '加载根请求工作台失败');
     } finally {
       setLoading(false);
     }
@@ -581,6 +600,13 @@ const History: React.FC = () => {
           >
             {loading ? '加载中...' : '查询'}
           </button>
+          <button
+            onClick={loadRootBoard}
+            disabled={loading}
+            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+          >
+            根请求工作台
+          </button>
         </div>
       </div>
 
@@ -592,6 +618,30 @@ const History: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow-md p-6">
+          {rootBoard && (
+            <div className="mb-6 border rounded p-3 bg-indigo-50 border-indigo-200">
+              <div className="flex justify-between items-center mb-2">
+                <div className="text-sm font-semibold text-indigo-700">根请求工作台</div>
+                <div className="text-xs text-gray-600">roots: {rootBoard.total_roots}</div>
+              </div>
+              <div className="space-y-2 max-h-56 overflow-auto">
+                {(rootBoard.items || []).slice(0, 20).map((r: any) => (
+                  <button
+                    key={r.root_id}
+                    className="w-full text-left border rounded p-2 bg-white hover:bg-gray-50"
+                    onClick={() => loadDetail(r.latest_request_id)}
+                  >
+                    <div className="text-xs text-gray-500">{r.latest_timestamp}</div>
+                    <div className="text-sm font-semibold text-gray-800 truncate">{r.latest_text}</div>
+                    <div className="text-xs text-blue-700 truncate">root: {r.root_id}</div>
+                    <div className="text-xs text-gray-600 mt-1">
+                      nodes: {r.total_nodes} · replay: {r.replay_nodes} · depth: {r.max_depth}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <h2 className="text-lg font-semibold mb-4">请求列表</h2>
           <div className="space-y-3">
             {items.length === 0 ? (
@@ -796,6 +846,12 @@ const History: React.FC = () => {
                     </div>
                     <div className="text-xs text-gray-700 mt-1">
                       最大变化节点：{chainInsights?.maxDeltaNodeId || '-'}{chainInsights?.maxDeltaPct != null ? `（Δ${chainInsights.maxDeltaPct}%）` : ''}
+                    </div>
+                    <div className="text-xs text-gray-700 mt-2">
+                      Top变化节点：
+                      {(chainInsights?.topDeltaNodes || []).length === 0
+                        ? ' -'
+                        : chainInsights?.topDeltaNodes.map((x: any) => `${x.request_id}(${x.delta_pct}%)`).join(' / ')}
                     </div>
                   </div>
                   <div className="space-y-2 mb-3">

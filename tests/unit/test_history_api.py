@@ -85,6 +85,11 @@ async def test_me_and_history_endpoints():
     assert resp["status"] == "success"
     assert len(resp["data"]["items"]) == 1
 
+    resp = await gateway.handle_request("GET", "/api/history/roots/u1", {"top_n": 20})
+    assert resp["status"] == "success"
+    assert resp["data"]["total_roots"] >= 1
+    assert isinstance(resp["data"]["items"], list)
+
     resp = await gateway.handle_request("GET", f"/api/history/u1/{request_id}", None)
     assert resp["status"] == "success"
     assert resp["data"]["request"]["request_id"] == request_id

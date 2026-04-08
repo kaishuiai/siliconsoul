@@ -178,6 +178,17 @@ export const historyAPI = {
     get<any>(`/history/${encodeURIComponent(userId)}/${encodeURIComponent(requestId)}`),
   chain: (userId: string, requestId: string) =>
     get<any>(`/history/${encodeURIComponent(userId)}/${encodeURIComponent(requestId)}/chain`),
+  roots: (
+    userId: string,
+    q: string = '',
+    taskType: string = '',
+    expertName: string = '',
+    topN: number = 50
+  ) =>
+    get<{ items: any[]; total_roots: number }>(
+      `/history/roots/${encodeURIComponent(userId)}`,
+      { params: { q: q || undefined, task_type: taskType || undefined, expert_name: expertName || undefined, top_n: topN } }
+    ),
   replay: (
     userId: string,
     requestId: string,

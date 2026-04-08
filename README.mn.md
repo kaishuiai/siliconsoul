@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Update status (2026-04-08): PRD Phase 1 (batch 3) adds chain statistics and one-click jump to the max-change node.
+> Update status (2026-04-08): PRD Phase 1 (batch 4) adds root-request workspace and Top-change navigation.
 
 ## ᠵᠣᠷᠢᠯᠭᠠ / ᠠᠴᠠ ᠲᠤᠰ / ᠪᠠᠢᠷᠢᠯᠠᠯ / ᠢᠯᠭᠠᠯᠲᠠ
 

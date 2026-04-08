@@ -17,7 +17,7 @@ Languages:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Update status (2026-04-08): PRD Phase 1 (batch 3) adds chain statistics and one-click jump to the max-change node for faster review workflows.
+> Update status (2026-04-08): PRD Phase 1 (batch 4) introduces a root-request workspace and Top-change node navigation, upgrading review from single records to chain-level workflows.
 
 ## Purpose / Value / Positioning / Differentiators
 

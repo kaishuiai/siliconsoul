@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import './App.css';
 
 // Components
+import ChatHome from './pages/ChatHome';
 import Dashboard from './pages/Dashboard';
 import StockAnalysis from './pages/StockAnalysis';
 import Portfolio from './pages/Portfolio';
@@ -67,7 +68,8 @@ function App() {
           <Navigation />
           <main className="flex-1 overflow-auto">
             <Routes>
-              <Route path="/" element={<Dashboard user={user} />} />
+              <Route path="/" element={<ChatHome user={user} />} />
+              <Route path="/dashboard" element={<Dashboard user={user} />} />
               <Route path="/stock-analysis" element={<StockAnalysis />} />
               <Route path="/portfolio" element={<Portfolio user={user} />} />
               <Route path="/knowledge" element={<KnowledgeBase />} />

@@ -25,6 +25,14 @@ const Navigation: React.FC = () => {
             to="/"
             className={`block px-4 py-2 rounded-lg transition ${isActive('/')}`}
           >
+            💬 AI对话
+          </Link>
+        </li>
+        <li>
+          <Link
+            to="/dashboard"
+            className={`block px-4 py-2 rounded-lg transition ${isActive('/dashboard')}`}
+          >
             📊 仪表板
           </Link>
         </li>

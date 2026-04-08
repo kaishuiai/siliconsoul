@@ -155,6 +155,17 @@ export const systemAPI = {
   setConfig: (key: string, value: any) => post<any>('/config', { key, value }),
 };
 
+export const chatAPI = {
+  process: (body: {
+    text: string;
+    task_type?: string;
+    context?: Record<string, any>;
+    user_id?: string;
+    extra_params?: Record<string, any>;
+    expert_names?: string[];
+  }) => post<any>('/process', body),
+};
+
 export const historyAPI = {
   list: (
     userId: string,

@@ -1,0 +1,37 @@
+system:
+  version: "1.1.0"
+  environment: "development"
+  log_level: "INFO"
+
+moe:
+  timeout_sec: 5.0
+  max_parallel_experts: 9
+  default_output_format: "json"
+
+storage:
+  type: "sqlite"
+  cache_enabled: false
+  cache_ttl_sec: 3600
+
+portfolio:
+  type: "sqlite"
+  connection_string: "data/siliconsoul.db"
+
+logging:
+  enabled: true
+  file: "logs/siliconsoul.log"
+  max_size_mb: 100
+  backup_count: 5
+
+features:
+  cli_enabled: true
+  batch_processing: true
+  health_check: true
+  performance_tracking: true
+
+cfo:
+  max_snippets: 5
+  max_chars_per_snippet: 280
+  tool_timeout_sec: 20.0
+  enable_consulting_agent: true
+  enable_llm: false

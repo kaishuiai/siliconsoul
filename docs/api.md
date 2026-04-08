@@ -4,6 +4,58 @@
 
 Complete API documentation for SiliconSoul MOE system.
 
+## HTTP API Server
+
+本仓库提供一个基于 aiohttp 的最小 HTTP API Server（用于对外提供 /api/* 端点）。
+
+启动方式：
+
+```bash
+python -m src.api_server.server
+```
+
+环境变量：
+
+- CONFIG_FILE：配置文件路径（默认使用 ConfigManager 内置默认值；docker-compose 默认设置为 config/default.yaml）
+- HOST：监听地址（默认 0.0.0.0）
+- PORT：监听端口（默认 8000）
+
+常用端点：
+
+- GET /api/health
+- GET /api/experts
+- GET /api/experts/<name>
+- POST /api/uploads
+- POST /api/process
+- POST /api/batch
+- GET /api/monitor/metrics
+- GET /api/monitor/stats
+- GET /api/config
+- POST /api/config
+- GET /api/portfolio/<user_id>
+- POST /api/portfolio/<user_id>/positions
+- GET /api/portfolio/<user_id>/stats
+- GET /api/me
+- GET /api/history/<user_id>
+- GET /api/history/<user_id>/<request_id>
+
+### POST /api/uploads
+
+- Content-Type: multipart/form-data
+- 字段：file（可重复多次，表示多文件）
+- 返回：data.files[] = {file_id, original_name}
+
+### GET /api/history/<user_id>
+
+支持过滤参数（query string）：
+
+- q：按请求文本关键词
+- expert_name：按专家结果过滤（例如 CFOExpert）
+- task_type：按任务类型过滤（例如 cfo_chat）
+- consensus_level：high/medium/low/none
+- only_errors：true/false
+- since/until：ISO 时间范围
+
 ## Table of Contents
 1. [MOEOrchestrator](#moeorchestrator)
 2. [Expert](#expert)

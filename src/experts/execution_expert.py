@@ -17,7 +17,7 @@ class ExecutionExpert(Expert):
         self.logger.info("ExecutionExpert initialized")
     
     def get_supported_tasks(self) -> List[str]:
-        return ["trade_execution", "position_tracking", "result_verification"]
+        return ["task_execution", "progress_tracking", "trade_execution", "position_tracking", "result_verification"]
     
     async def analyze(self, request: ExpertRequest) -> ExpertResult:
         """Execute trade and track execution result."""

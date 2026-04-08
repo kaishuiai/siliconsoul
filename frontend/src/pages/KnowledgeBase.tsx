@@ -1,10 +1,28 @@
 import React, { useState } from 'react';
+import { knowledgeAPI } from '../services/api';
 
 /**
  * 知识库页面
  */
 const KnowledgeBase: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<any | null>(null);
+
+  const onSearch = async () => {
+    if (!searchQuery.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const resp = await knowledgeAPI.search(searchQuery);
+      setResult(resp || null);
+    } catch (e: any) {
+      setError(e?.message || '搜索失败');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const articles = [
     {
@@ -44,14 +62,50 @@ const KnowledgeBase: React.FC = () => {
 
       {/* 搜索 */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-        <input
-          type="text"
-          placeholder="搜索知识库..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-        />
+        <div className="flex gap-3">
+          <input
+            type="text"
+            placeholder="搜索知识库..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+          />
+          <button
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            onClick={onSearch}
+            disabled={loading}
+          >
+            {loading ? '搜索中...' : '智能搜索'}
+          </button>
+        </div>
       </div>
+
+      {error && (
+        <div className="mb-8 bg-red-50 border border-red-200 text-red-700 rounded p-4">
+          {error}
+        </div>
+      )}
+
+      {result && (
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <h2 className="text-xl font-semibold mb-4">检索结果</h2>
+          <div className="text-sm text-gray-700 mb-4">
+            {result.final_result?.error ? result.final_result.error : result.final_result?.summary || '已完成检索'}
+          </div>
+          <div className="space-y-3">
+            {(result.expert_results || [])
+              .filter((r: any) => r.expert_name === 'KnowledgeExpert' && r.result?.knowledge_items)
+              .flatMap((r: any) => r.result.knowledge_items)
+              .slice(0, 5)
+              .map((item: any, idx: number) => (
+                <div key={idx} className="border rounded p-3">
+                  <div className="font-semibold">{item.title || item.source}</div>
+                  <div className="text-gray-600 mt-1">{item.content}</div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
 
       {/* 文章列表 */}
       <div className="grid grid-cols-1 gap-4">

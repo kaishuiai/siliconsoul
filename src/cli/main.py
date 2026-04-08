@@ -18,11 +18,13 @@ from src.experts.demo_expert_1 import DemoExpert1
 from src.experts.demo_expert_2 import DemoExpert2
 from src.experts.demo_expert_3 import DemoExpert3
 from src.experts.stock_analysis_expert import StockAnalysisExpert
+from src.experts.cfo_expert import CFOExpert
 from src.experts.knowledge_expert import KnowledgeExpert
 from src.experts.dialog_expert import DialogExpert
 from src.experts.decision_expert import DecisionExpert
 from src.experts.reflection_expert import ReflectionExpert
 from src.experts.execution_expert import ExecutionExpert
+from src.experts.cfo_expert import CFOExpert
 from src.models.request_response import ExpertRequest
 
 
@@ -47,12 +49,13 @@ class SiliconSoulCLI:
             DemoExpert3(),
             StockAnalysisExpert(),
             KnowledgeExpert(),
+            CFOExpert(),
             DialogExpert(),
             DecisionExpert(),
             ReflectionExpert(),
             ExecutionExpert(),
         ]
-        
+
         for expert in experts:
             self.moe.register_expert(expert)
     

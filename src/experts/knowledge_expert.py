@@ -11,9 +11,9 @@ Knowledge Expert - 知识库检索和语义搜索（集成 Chroma）
 
 import time
 import logging
+import re
+import hashlib
 from typing import Dict, List, Optional, Any
-from datetime import datetime
-import os
 from pydantic import BaseModel
 
 from src.experts.expert_base import Expert
@@ -23,254 +23,257 @@ logger = logging.getLogger(__name__)
 
 
 class KnowledgeItem(BaseModel):
-    """知识项数据模型"""
     source: str
     content: str
     title: str = ""
+    relevance_score: float = 0.0
     confidence: float = 0.0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "source": self.source,
+            "content": self.content,
+            "title": self.title,
+            "relevance_score": self.relevance_score,
+            "confidence": self.confidence,
+        }
 
 
 class KnowledgeExpert(Expert):
-    """知识专家 - 集成向量数据库的语义搜索"""
+    """知识专家"""
     
     def __init__(self):
-        """初始化知识专家"""
-        super().__init__(name="KnowledgeExpert", version="2.0")
-        self._knowledge_base = self._initialize_knowledge_base()
-        self._vector_db = None  # 延迟初始化 Chroma
-        self.logger.info("KnowledgeExpert v2.0 initialized")
+        super().__init__(name="KnowledgeExpert", version="1.0")
+        self._knowledge_cache = self._initialize_knowledge_cache()
+        self._analysis_cache = self._initialize_analysis_cache()
+        self._user_history_cache = self._initialize_user_history_cache()
+        self._result_cache: Dict[str, Dict[str, Any]] = {}
+        self.logger.info("KnowledgeExpert v1.0 initialized")
     
     def get_supported_tasks(self) -> List[str]:
-        """返回支持的任务类型"""
-        return ["knowledge_retrieval", "semantic_search", "qa"]
+        return ["knowledge_query", "information_retrieval", "knowledge_retrieval", "semantic_search", "qa"]
     
     async def analyze(self, request: ExpertRequest) -> ExpertResult:
-        """
-        主要知识检索方法
-        
-        Args:
-            request: 包含查询文本的请求
-        
-        Returns:
-            知识检索结果
-        """
-        start_time = time.time()
-        
+        timestamp_start = time.time()
         try:
-            query = request.text or request.extra_params.get("query", "")
+            extra_params = request.extra_params or {}
+            query = request.text or extra_params.get("query", "")
             
             if not query:
-                return self._error_result(start_time, "查询文本不能为空")
-            
-            self.logger.info(f"知识查询: {query[:100]}")
-            
-            # 首先尝试向量数据库搜索
-            results = await self._semantic_search(query)
-            
-            # 如果向量搜索失败，使用关键词搜索
-            if not results:
-                results = self._keyword_search(query)
-            
-            # 合成答案
-            if results:
-                answer = self._synthesize_answer(results, query)
-                confidence = self._calculate_confidence(results)
-            else:
-                answer = f"抱歉，我在知识库中没有找到关于'{query}'的相关信息。"
-                confidence = 0.0
-            
+                return self._error_result(timestamp_start, "查询文本不能为空")
+
+            knowledge_sources = extra_params.get(
+                "knowledge_sources",
+                ["local_docs", "analysis_cache", "user_history"],
+            )
+            top_k = int(extra_params.get("top_k", 5))
+            min_confidence = float(extra_params.get("min_confidence", 0.0))
+
+            cache_key = self._make_cache_key(query, knowledge_sources)
+            if cache_key in self._result_cache:
+                cached = self._result_cache[cache_key]
+                return ExpertResult(
+                    expert_name=self.name,
+                    result=cached["result"],
+                    confidence=cached["confidence"],
+                    metadata={"version": self.version, "from_cache": True},
+                    timestamp_start=timestamp_start,
+                    timestamp_end=time.time(),
+                )
+
+            parsed = self._parse_query(query)
+            items: List[KnowledgeItem] = []
+
+            if "local_docs" in knowledge_sources:
+                items.extend(await self._search_local_docs(parsed))
+            if "analysis_cache" in knowledge_sources:
+                items.extend(await self._search_analysis_cache(parsed))
+            if "user_history" in knowledge_sources:
+                items.extend(await self._search_user_history(parsed))
+
+            items = self._rank_by_relevance(items, parsed)
+            items = self._remove_duplicates(items)
+            if min_confidence > 0:
+                items = [i for i in items if i.confidence >= min_confidence]
+            if top_k > 0:
+                items = items[:top_k]
+
+            summary = self._generate_summary(query, items)
+            recommendations = self._generate_recommendations(query, items)
+
             result_data = {
                 "query": query,
-                "answer": answer,
-                "sources": [r.get("source", "Unknown") for r in results[:3]],
-                "confidence": confidence,
-                "result_count": len(results)
+                "knowledge_items": [i.to_dict() for i in items],
+                "summary": summary,
+                "recommendations": recommendations,
             }
-            
+            confidence = max((i.confidence for i in items), default=0.0)
+
+            self._result_cache[cache_key] = {"result": result_data, "confidence": confidence}
+
             return ExpertResult(
-                status="success",
-                data=result_data,
+                expert_name=self.name,
+                result=result_data,
                 confidence=confidence,
-                execution_time=time.time() - start_time
+                metadata={"version": self.version, "from_cache": False},
+                timestamp_start=timestamp_start,
+                timestamp_end=time.time(),
             )
             
         except Exception as e:
             self.logger.error(f"知识检索失败: {str(e)}")
-            return self._error_result(start_time, f"检索错误: {str(e)}")
-    
-    async def _semantic_search(self, query: str) -> List[Dict]:
-        """
-        向量数据库语义搜索
-        
-        使用 Chroma 进行相似度搜索
-        """
-        try:
-            # 延迟初始化 Chroma
-            if self._vector_db is None:
-                from chromadb import Client
-                self._vector_db = Client()
-                self._initialize_vector_db()
-            
-            # 执行相似度搜索
-            collection = self._vector_db.get_or_create_collection("knowledge")
-            results = collection.query(
-                query_texts=[query],
-                n_results=5
-            )
-            
-            if results and results["ids"] and len(results["ids"]) > 0:
-                # 格式化结果
-                docs = []
-                for i, doc_id in enumerate(results["ids"][0]):
-                    docs.append({
-                        "id": doc_id,
-                        "content": results["documents"][0][i] if results["documents"] else "",
-                        "distance": results["distances"][0][i] if results["distances"] else 0,
-                        "source": f"Vector DB - {doc_id}"
-                    })
-                
-                self.logger.info(f"向量搜索找到 {len(docs)} 个结果")
-                return docs
-                
-        except ImportError:
-            self.logger.warning("Chroma 未安装，使用关键词搜索")
-        except Exception as e:
-            self.logger.warning(f"向量搜索失败: {str(e)}")
-        
-        return []
-    
-    def _initialize_vector_db(self):
-        """初始化向量数据库并加载文档"""
-        try:
-            collection = self._vector_db.get_or_create_collection("knowledge")
-            
-            # 添加知识库文档
-            documents = []
-            ids = []
-            
-            for doc_id, doc_data in self._knowledge_base.items():
-                documents.append(doc_data["content"])
-                ids.append(doc_id)
-            
-            # 添加到 Chroma
-            if documents:
-                collection.add(
-                    ids=ids,
-                    documents=documents,
-                    metadatas=[{"source": self._knowledge_base[id]["source"]} for id in ids]
-                )
-                
-                self.logger.info(f"加载 {len(documents)} 个文档到向量数据库")
-                
-        except Exception as e:
-            self.logger.warning(f"向量数据库初始化失败: {str(e)}")
-    
-    def _keyword_search(self, query: str) -> List[Dict]:
-        """关键词搜索（向量数据库不可用时的备选）"""
-        results = []
-        query_lower = query.lower()
-        
-        for doc_id, doc_data in self._knowledge_base.items():
-            content_lower = doc_data["content"].lower()
-            title_lower = doc_data["title"].lower()
-            
-            # 计算匹配度
-            score = 0
-            if query_lower in title_lower:
-                score += 3
-            
-            words = query_lower.split()
-            for word in words:
-                if len(word) > 2 and word in content_lower:
-                    score += 1
-            
-            if score > 0:
-                results.append({
-                    "id": doc_id,
-                    "content": doc_data["content"],
-                    "title": doc_data["title"],
-                    "score": score,
-                    "source": doc_data["source"]
-                })
-        
-        # 按得分排序
-        results.sort(key=lambda x: x.get("score", 0), reverse=True)
-        return results[:5]
-    
-    def _synthesize_answer(self, results: List[Dict], query: str) -> str:
-        """合成答案"""
-        if not results:
-            return f"关于'{query}'的信息暂时不可用。"
-        
-        # 使用第一个（最相关的）结果
-        best_result = results[0]
-        content = best_result.get("content", "")
-        title = best_result.get("title", "")
-        
-        # 生成答案
-        if len(content) > 200:
-            answer = content[:200] + "..."
-        else:
-            answer = content
-        
-        return f"根据知识库中的'{title}'：{answer}"
-    
-    def _calculate_confidence(self, results: List[Dict]) -> float:
-        """计算置信度"""
-        if not results:
-            return 0.0
-        
-        # 基于最佳结果的相关性
-        best_result = results[0]
-        
-        # 向量搜索的距离
-        if "distance" in best_result:
-            distance = best_result["distance"]
-            confidence = max(0.0, 1.0 - distance)
-        # 关键词搜索的得分
-        elif "score" in best_result:
-            score = best_result["score"]
-            confidence = min(0.95, score / 3.0)
-        else:
-            confidence = 0.5
-        
-        return confidence
-    
-    def _initialize_knowledge_base(self) -> Dict[str, Dict]:
-        """初始化知识库"""
+            return self._error_result(timestamp_start, f"检索错误: {str(e)}")
+
+    def _initialize_knowledge_cache(self) -> Dict[str, List[KnowledgeItem]]:
         return {
-            "doc_001": {
-                "title": "股票投资基础",
-                "content": "股票投资是长期财富积累的重要方式。投资前应了解基本概念、风险管理原则和常见的交易策略。",
-                "source": "Knowledge Base"
-            },
-            "doc_002": {
-                "title": "技术分析指标",
-                "content": "常见技术分析指标包括移动平均(MA)、相对强度指数(RSI)、MACD和布林带等。这些指标帮助识别趋势和买卖点。",
-                "source": "Knowledge Base"
-            },
-            "doc_003": {
-                "title": "风险管理",
-                "content": "风险管理是投资成功的关键。包括止损设置、头寸管理、资产配置和多元化投资等策略。",
-                "source": "Knowledge Base"
-            },
-            "doc_004": {
-                "title": "市场心理学",
-                "content": "市场参与者的情绪和心理因素影响股价波动。理解市场心理有助于做出更理性的投资决策。",
-                "source": "Knowledge Base"
-            },
-            "doc_005": {
-                "title": "投资组合构建",
-                "content": "成功的投资组合应该根据风险承受能力和投资目标进行多元化配置。定期调整和再平衡很重要。",
-                "source": "Knowledge Base"
-            }
+            "stocks": [
+                KnowledgeItem(source="local_docs", title="A股基础", content="600000.SH is a sample stock symbol.", confidence=0.8),
+            ],
+            "companies": [
+                KnowledgeItem(source="local_docs", title="Company basics", content="Companies issue stocks and have fundamentals.", confidence=0.7),
+            ],
+            "rules": [
+                KnowledgeItem(source="local_docs", title="Technical analysis", content="Moving Average (MA) is a common technical indicator.", confidence=0.9),
+                KnowledgeItem(source="local_docs", title="RSI", content="RSI indicator measures momentum and overbought/oversold.", confidence=0.9),
+                KnowledgeItem(source="local_docs", title="MACD", content="MACD is used to identify trend changes.", confidence=0.85),
+            ],
         }
-    
-    def _error_result(self, start_time: float, error_msg: str) -> ExpertResult:
-        """返回错误结果"""
+
+    def _initialize_analysis_cache(self) -> List[KnowledgeItem]:
+        return [
+            KnowledgeItem(source="analysis_cache", content="Previous analysis for 600000.SH: moving average crossover.", confidence=0.8),
+        ]
+
+    def _initialize_user_history_cache(self) -> List[KnowledgeItem]:
+        return [
+            KnowledgeItem(source="user_history", content="Your previous queries include RSI and moving averages.", confidence=0.7),
+        ]
+
+    def _parse_query(self, query: str) -> Dict[str, Any]:
+        lowercase = query.lower()
+        symbols = re.findall(r"\b[0-9]{6}\.(?:SH|SZ|HK)\b", query, flags=re.IGNORECASE)
+        numbers = re.findall(r"\b\d+\b", query)
+        tokens = re.findall(r"[a-zA-Z]+", lowercase)
+        keywords = [t for t in tokens if len(t) >= 3]
+        return {"keywords": keywords, "symbols": symbols, "numbers": numbers, "lowercase": lowercase}
+
+    async def _search_local_docs(self, parsed: Dict[str, Any]) -> List[KnowledgeItem]:
+        keywords = parsed.get("keywords", [])
+        q = parsed.get("lowercase", "")
+        results: List[KnowledgeItem] = []
+        for group in self._knowledge_cache.values():
+            for item in group:
+                text = f"{item.title}\n{item.content}".lower()
+                match = 0
+                for kw in keywords:
+                    if kw in text:
+                        match += 1
+                if "rsi" in q and "rsi" in text:
+                    match += 2
+                if "moving" in q and "moving" in text:
+                    match += 2
+                if match > 0:
+                    denom = max(len(keywords), 1)
+                    score = min(1.0, match / denom)
+                    results.append(
+                        KnowledgeItem(
+                            source=item.source,
+                            title=item.title,
+                            content=item.content,
+                            relevance_score=score,
+                            confidence=max(item.confidence, min(1.0, 0.5 + score / 2)),
+                        )
+                    )
+        return results
+
+    async def _search_analysis_cache(self, parsed: Dict[str, Any]) -> List[KnowledgeItem]:
+        symbols = parsed.get("symbols", [])
+        keywords = parsed.get("keywords", [])
+        if symbols:
+            results = []
+            for sym in symbols:
+                for item in self._analysis_cache:
+                    if sym.lower() in item.content.lower():
+                        results.append(
+                            KnowledgeItem(
+                                source=item.source,
+                                content=item.content,
+                                relevance_score=0.9,
+                                confidence=item.confidence,
+                            )
+                        )
+            if results:
+                return results
+            return [
+                KnowledgeItem(
+                    source="analysis_cache",
+                    content=f"No cached analysis found for {symbols[0]}",
+                    relevance_score=0.6,
+                    confidence=0.6,
+                )
+            ]
+        if any(k in ("analysis", "analyze") for k in keywords):
+            return [KnowledgeItem(source="analysis_cache", content="General analysis notes.", relevance_score=0.5, confidence=0.6)]
+        return []
+
+    async def _search_user_history(self, parsed: Dict[str, Any]) -> List[KnowledgeItem]:
+        q = parsed.get("lowercase", "")
+        if any(w in q for w in ("previous", "history", "my")):
+            return list(self._user_history_cache)
+        return []
+
+    def _rank_by_relevance(self, items: List[KnowledgeItem], parsed: Dict[str, Any]) -> List[KnowledgeItem]:
+        return sorted(items, key=lambda i: (i.relevance_score, i.confidence), reverse=True)
+
+    def _remove_duplicates(self, items: List[KnowledgeItem]) -> List[KnowledgeItem]:
+        kept: List[KnowledgeItem] = []
+        seen: List[set] = []
+        for item in items:
+            tokens = set(re.findall(r"[a-zA-Z]+", item.content.lower()))
+            if not tokens:
+                kept.append(item)
+                continue
+            is_dup = False
+            for prev in seen:
+                inter = len(tokens & prev)
+                union = len(tokens | prev)
+                if union > 0 and (inter / union) >= 0.8:
+                    is_dup = True
+                    break
+            if not is_dup:
+                kept.append(item)
+                seen.append(tokens)
+        return kept
+
+    def _generate_recommendations(self, query: str, results: List[KnowledgeItem]) -> List[str]:
+        q = query.lower()
+        recs: List[str] = []
+        if re.search(r"\b[0-9]{6}\.(?:sh|sz|hk)\b", q):
+            recs.append("查看该标的的近期趋势与关键均线位置")
+            recs.append("结合风险管理设置止损与仓位")
+        if "rsi" in q or any("rsi" in r.content.lower() for r in results):
+            recs.append("对比 RSI 与价格走势，关注背离信号")
+        if not recs:
+            recs.append("尝试提供更具体的关键词或股票代码以提升命中率")
+        return recs
+
+    def _generate_summary(self, query: str, results: List[KnowledgeItem]) -> str:
+        if not results:
+            return f"Knowledge not found for query: {query}"
+        return f"Found {len(results)} relevant knowledge items for the query."
+
+    def _make_cache_key(self, query: str, sources: List[str]) -> str:
+        normalized_sources = ",".join(sorted(set(sources)))
+        raw = f"{query.strip().lower()}|{normalized_sources}"
+        return hashlib.md5(raw.encode("utf-8")).hexdigest()
+
+    def _error_result(self, timestamp_start: float, error_msg: str) -> ExpertResult:
         return ExpertResult(
-            status="error",
-            data={"error": error_msg},
+            expert_name=self.name,
+            result={"error": error_msg},
             confidence=0.0,
-            execution_time=time.time() - start_time
+            metadata={"version": self.version},
+            timestamp_start=timestamp_start,
+            timestamp_end=time.time(),
+            error=error_msg,
         )

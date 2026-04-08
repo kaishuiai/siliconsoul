@@ -46,7 +46,7 @@ class MLExpert(Expert):
         Returns:
             预测或异常检测结果
         """
-        start_time = time.time()
+        timestamp_start = time.time()
         
         try:
             extra_params = request.extra_params or {}
@@ -54,7 +54,7 @@ class MLExpert(Expert):
             prices = extra_params.get("prices", [])
             
             if not prices or len(prices) < 10:
-                return self._error_result(start_time, "需要至少 10 个价格数据点")
+                return self._error_result(timestamp_start, "需要至少 10 个价格数据点")
             
             self.logger.info(f"执行 ML 任务: {task_type}")
             
@@ -72,17 +72,23 @@ class MLExpert(Expert):
                 result = self._analyze_sentiment(prices, features)
             else:
                 result = self._predict_price(prices, features)
-            
+            timestamp_end = time.time()
+
+            confidence = float(result.get("confidence", 0.7))
+            confidence = max(0.0, min(1.0, confidence))
+
             return ExpertResult(
-                status="success",
-                data=result,
-                confidence=result.get("confidence", 0.7),
-                execution_time=time.time() - start_time
+                expert_name=self.name,
+                result=result,
+                confidence=confidence,
+                metadata={"version": self.version, "task": task_type},
+                timestamp_start=timestamp_start,
+                timestamp_end=timestamp_end,
             )
             
         except Exception as e:
             self.logger.error(f"ML 分析失败: {str(e)}")
-            return self._error_result(start_time, f"分析错误: {str(e)}")
+            return self._error_result(timestamp_start, f"分析错误: {str(e)}")
     
     def _engineer_features(self, prices: List[float]) -> Dict[str, List[float]]:
         """
@@ -143,16 +149,17 @@ class MLExpert(Expert):
         prices = np.array(prices)
         last_price = prices[-1]
         
-        # 简单的移动平均预测
-        ma5 = features['ma5'][-1] if len(features['ma5']) > 0 else last_price
-        ma10 = features['ma10'][-1] if len(features['ma10']) > 0 else last_price
-        ma20 = features['ma20'][-1] if len(features['ma20']) > 0 else last_price
-        
-        # 加权平均预测
-        predicted_price = (ma5 * 0.5 + ma10 * 0.3 + ma20 * 0.2)
-        
-        # 计算改变百分比
-        change_percent = (predicted_price - last_price) / last_price * 100
+        lookback = min(5, len(prices) - 1)
+        base = float(prices[-lookback - 1])
+        slope = float(last_price - base)
+        trend_ratio = (slope / base) if base != 0 else 0.0
+
+        predicted_price = float(last_price) * (1.0 + 0.5 * trend_ratio)
+        change_percent = (predicted_price - float(last_price)) / float(last_price) * 100
+
+        ma5 = features['ma5'][-1] if len(features['ma5']) > 0 else float(last_price)
+        ma10 = features['ma10'][-1] if len(features['ma10']) > 0 else float(last_price)
+        ma20 = features['ma20'][-1] if len(features['ma20']) > 0 else float(last_price)
         
         # 计算置信度（基于一致性）
         ma_agreement = abs(ma5 - ma10) / ma10 < 0.02 and abs(ma10 - ma20) / ma20 < 0.02
@@ -163,7 +170,7 @@ class MLExpert(Expert):
             "current_price": float(last_price),
             "predicted_price": float(predicted_price),
             "change_percent": float(change_percent),
-            "direction": "上升" if change_percent > 0 else "下降",
+            "direction": "上升" if trend_ratio > 0 else "下降",
             "confidence": confidence,
             "prediction_period": "下一交易日"
         }
@@ -365,11 +372,15 @@ class MLExpert(Expert):
         
         return mas
     
-    def _error_result(self, start_time: float, error_msg: str) -> ExpertResult:
+    def _error_result(self, timestamp_start: float, error_msg: str) -> ExpertResult:
         """返回错误结果"""
+        timestamp_end = time.time()
         return ExpertResult(
-            status="error",
-            data={"error": error_msg},
+            expert_name=self.name,
+            result={"error": error_msg},
             confidence=0.0,
-            execution_time=time.time() - start_time
+            metadata={"version": self.version},
+            timestamp_start=timestamp_start,
+            timestamp_end=timestamp_end,
+            error=error_msg,
         )

@@ -7,8 +7,10 @@ import Dashboard from './pages/Dashboard';
 import StockAnalysis from './pages/StockAnalysis';
 import Portfolio from './pages/Portfolio';
 import KnowledgeBase from './pages/KnowledgeBase';
+import History from './pages/History';
 import Navigation from './components/Navigation';
 import Header from './components/Header';
+import { systemAPI } from './services/api';
 
 /**
  * SiliconSoul MOE - 主应用程序
@@ -26,6 +28,15 @@ function App() {
         const savedUser = localStorage.getItem('user');
         if (savedUser) {
           setUser(JSON.parse(savedUser));
+        }
+        try {
+          const me = await systemAPI.me();
+          if (me?.user_id) {
+            const u = { id: me.user_id, name: me.user_id, email: '' };
+            setUser(u as any);
+            localStorage.setItem('user', JSON.stringify(u));
+          }
+        } catch {
         }
       } catch (error) {
         console.error('应用初始化失败:', error);
@@ -60,6 +71,7 @@ function App() {
               <Route path="/stock-analysis" element={<StockAnalysis />} />
               <Route path="/portfolio" element={<Portfolio user={user} />} />
               <Route path="/knowledge" element={<KnowledgeBase />} />
+              <Route path="/history" element={<History />} />
             </Routes>
           </main>
         </div>

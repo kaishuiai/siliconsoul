@@ -3,12 +3,13 @@ version: '3.8'
 services:
   siliconsoul:
     build: .
+    command: ["python", "-m", "src.api_server.server"]
     ports:
       - "8000:8000"
     environment:
-      - LOG_LEVEL=INFO
-      - CONFIG_FILE=config/default.yaml
-      - STORAGE_TYPE=sqlite
+      - SILICONSOUL_LOG_LEVEL=INFO
+      - CONFIG_FILE=config/default.json
+      - SILICONSOUL_STORAGE_TYPE=sqlite
     volumes:
       - ./config:/app/config
       - ./data:/app/data
@@ -23,18 +24,29 @@ services:
 
   siliconsoul-web:
     build:
-      context: ../siliconsoul-web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: deploy/Dockerfile.web
     ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - "3000:80"
     depends_on:
       - siliconsoul
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      test: ["CMD", "curl", "-f", "http://localhost/"]
       interval: 30s
       timeout: 3s
       retries: 3
       start_period: 10s
+
+  siliconsoul-cfo:
+    build: .
+    command: ["streamlit", "run", "frontend/cfo_streamlit_app.py", "--server.address=0.0.0.0", "--server.port=8501"]
+    ports:
+      - "8501:8501"
+    environment:
+      - CFO_API_URL=http://siliconsoul:8000/api
+    volumes:
+      - ./config:/app/config
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped

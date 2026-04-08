@@ -83,6 +83,10 @@ class Expert(ABC):
         }
         
         self.logger.debug(f"Initialized expert: {self.name} v{self.version}")
+
+    @property
+    def supported_tasks(self) -> List[str]:
+        return self.get_supported_tasks()
     
     @abstractmethod
     async def analyze(self, request: ExpertRequest) -> ExpertResult:
@@ -110,6 +114,9 @@ class Expert(ABC):
             error handling. Subclasses should not override execute().
         """
         pass
+
+    def get_supported_tasks(self) -> List[str]:
+        return []
     
     async def execute(
         self,

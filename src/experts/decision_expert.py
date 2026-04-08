@@ -15,7 +15,7 @@ class DecisionExpert(Expert):
         self.logger.info("DecisionExpert initialized")
     
     def get_supported_tasks(self) -> List[str]:
-        return ["decision_making", "result_aggregation", "recommendation"]
+        return ["decision_support", "risk_assessment", "decision_making", "result_aggregation", "recommendation"]
     
     async def analyze(self, request: ExpertRequest) -> ExpertResult:
         """Analyze and aggregate expert results into unified decision."""

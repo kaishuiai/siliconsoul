@@ -52,10 +52,17 @@ class ConfigManager:
             "batch_processing": True,
             "health_check": True,
             "performance_tracking": True
+        },
+        "cfo": {
+            "max_snippets": 5,
+            "max_chars_per_snippet": 280,
+            "tool_timeout_sec": 20.0,
+            "enable_consulting_agent": True,
+            "enable_llm": False
         }
     }
     
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: Optional[str] = None, **overrides: Any):
         """
         Initialize configuration manager.
         
@@ -69,6 +76,20 @@ class ConfigManager:
             self._load_config_file(config_path)
         
         self._load_env_overrides()
+        self._apply_overrides(overrides)
+
+    def _apply_overrides(self, overrides: Dict[str, Any]) -> None:
+        for key, value in overrides.items():
+            if key == "storage_type":
+                self.set("storage.type", value)
+                continue
+            if key == "timeout_sec":
+                self.set("moe.timeout_sec", value)
+                continue
+            if "." in key:
+                self.set(key, value)
+                continue
+            self.config[key] = value
     
     def _load_config_file(self, path: str) -> None:
         """
@@ -131,9 +152,32 @@ class ConfigManager:
         # Storage settings
         if env_val := os.getenv('SILICONSOUL_STORAGE_TYPE'):
             self.config['storage']['type'] = env_val
+
+        if env_val := os.getenv('SILICONSOUL_STORAGE_PATH'):
+            self.config['storage']['connection_string'] = env_val
         
         if env_val := os.getenv('SILICONSOUL_CACHE_ENABLED'):
             self.config['storage']['cache_enabled'] = env_val.lower() in ['true', '1', 'yes']
+
+        if env_val := os.getenv('SILICONSOUL_AUTH_ENABLED'):
+            self.config.setdefault('auth', {}).setdefault('enabled', False)
+            self.config['auth']['enabled'] = env_val.lower() in ['true', '1', 'yes']
+
+        if env_val := os.getenv('SILICONSOUL_API_TOKENS'):
+            tokens: Dict[str, str] = {}
+            for pair in env_val.split(','):
+                pair = pair.strip()
+                if not pair:
+                    continue
+                if ':' not in pair:
+                    continue
+                token, user_id = pair.split(':', 1)
+                token = token.strip()
+                user_id = user_id.strip()
+                if token and user_id:
+                    tokens[token] = user_id
+            self.config.setdefault('auth', {})
+            self.config['auth']['tokens'] = tokens
     
     def _merge_config(self, new_config: Dict[str, Any]) -> None:
         """
@@ -249,6 +293,9 @@ class ConfigManager:
     def to_dict(self) -> Dict[str, Any]:
         """Export configuration as dictionary"""
         return self.config.copy()
+
+    def get_all(self) -> Dict[str, Any]:
+        return self.to_dict()
     
     def to_json(self) -> str:
         """Export configuration as JSON string"""

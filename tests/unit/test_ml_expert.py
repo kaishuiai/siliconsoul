@@ -72,8 +72,8 @@ class TestPricePrediction:
         
         result = await expert.analyze(request)
         
-        assert result.status == "success"
-        data = result.data
+        assert result.error is None
+        data = result.result
         assert "predicted_price" in data
         assert data["direction"] == "上升"
     
@@ -93,8 +93,8 @@ class TestPricePrediction:
         
         result = await expert.analyze(request)
         
-        assert result.status == "success"
-        data = result.data
+        assert result.error is None
+        data = result.result
         assert data["direction"] == "下降"
     
     @pytest.mark.asyncio
@@ -112,7 +112,7 @@ class TestPricePrediction:
         
         result = await expert.analyze(request)
         
-        assert result.status == "error"
+        assert result.error is not None
 
 
 class TestAnomalyDetection:
@@ -134,8 +134,8 @@ class TestAnomalyDetection:
         
         result = await expert.analyze(request)
         
-        assert result.status == "success"
-        data = result.data
+        assert result.error is None
+        data = result.result
         assert "return_anomalies" in data
         assert len(data["return_anomalies"]) > 0
     
@@ -155,7 +155,7 @@ class TestAnomalyDetection:
         
         result = await expert.analyze(request)
         
-        assert result.status == "success"
+        assert result.error is None
 
 
 class TestRiskScoring:
@@ -177,8 +177,8 @@ class TestRiskScoring:
         
         result = await expert.analyze(request)
         
-        assert result.status == "success"
-        data = result.data
+        assert result.error is None
+        data = result.result
         assert "risk_score" in data
         assert "risk_level" in data
         assert data["risk_score"] < 50  # 应该是低-中风险
@@ -199,8 +199,8 @@ class TestRiskScoring:
         
         result = await expert.analyze(request)
         
-        assert result.status == "success"
-        data = result.data
+        assert result.error is None
+        data = result.result
         assert data["risk_score"] > 50  # 应该是中-高风险
 
 
@@ -223,8 +223,8 @@ class TestSentimentAnalysis:
         
         result = await expert.analyze(request)
         
-        assert result.status == "success"
-        data = result.data
+        assert result.error is None
+        data = result.result
         assert data["sentiment"] in ["看涨", "极度看涨"]
     
     @pytest.mark.asyncio
@@ -243,8 +243,8 @@ class TestSentimentAnalysis:
         
         result = await expert.analyze(request)
         
-        assert result.status == "success"
-        data = result.data
+        assert result.error is None
+        data = result.result
         assert data["sentiment"] in ["看跌", "极度看跌"]
 
 

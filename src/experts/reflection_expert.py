@@ -15,7 +15,7 @@ class ReflectionExpert(Expert):
         self.logger.info("ReflectionExpert initialized")
     
     def get_supported_tasks(self) -> List[str]:
-        return ["reflection", "quality_assessment", "continuous_learning"]
+        return ["decision_review", "lesson_extraction", "reflection", "quality_assessment", "continuous_learning"]
     
     async def analyze(self, request: ExpertRequest) -> ExpertResult:
         """Assess decision quality and generate learning feedback."""

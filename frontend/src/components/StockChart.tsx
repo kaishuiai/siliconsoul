@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Line, Candlestick } from 'react-chartjs-2';
+import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -40,7 +40,7 @@ interface StockChartProps {
  * 股票价格图表组件
  */
 const StockChart: React.FC<StockChartProps> = ({ data, title, symbol }) => {
-  const [chartData, setChartData] = useState(null);
+  const [chartData, setChartData] = useState<any>(null);
 
   useEffect(() => {
     if (!data || data.length === 0) return;

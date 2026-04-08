@@ -17,6 +17,7 @@ from datetime import datetime
 import os
 
 from src.experts.expert_base import Expert
+from src.llm.client import LLMClient
 from src.models.request_response import ExpertRequest, ExpertResult
 
 logger = logging.getLogger(__name__)
@@ -29,17 +30,17 @@ class DialogExpert(Expert):
         """初始化对话专家"""
         super().__init__(name="DialogExpert", version="2.0")
         self._intents = {
-            "analyze_stock": ["分析", "查看", "检查", "研究", "查询"],
-            "get_price": ["价格", "成本", "多少钱", "报价"],
-            "technical_analysis": ["技术", "指标", "MA", "RSI", "MACD"],
-            "buy_signal": ["买", "看涨", "上升", "多头"],
-            "sell_signal": ["卖", "看跌", "下降", "空头"],
-            "risk_management": ["风险", "止损", "头寸", "配置"],
-            "portfolio": ["投资组合", "分散", "配置", "持仓"],
-            "knowledge_query": ["什么", "如何", "解释", "告诉我"]
+            "analyze_stock": ["分析", "查看", "检查", "研究", "查询", "analyze", "analysis"],
+            "get_price": ["价格", "成本", "多少钱", "报价", "price", "quote"],
+            "technical_analysis": ["技术", "指标", "MA", "RSI", "MACD", "technical"],
+            "buy_signal": ["买", "看涨", "上升", "多头", "buy", "signal", "bull"],
+            "sell_signal": ["卖", "看跌", "下降", "空头", "sell", "bear"],
+            "risk_management": ["风险", "止损", "头寸", "配置", "risk", "stop loss"],
+            "portfolio": ["投资组合", "分散", "配置", "持仓", "portfolio", "allocation"],
+            "knowledge_query": ["什么", "如何", "解释", "告诉我", "what", "how", "explain"]
         }
         self._conversation_history = {}
-        self._llm_api_key = os.getenv("DEEPSEEK_API_KEY", "")
+        self._llm = LLMClient()
         self.logger.info("DialogExpert v2.0 initialized with LLM integration")
     
     def get_supported_tasks(self) -> List[str]:
@@ -56,19 +57,21 @@ class DialogExpert(Expert):
         Returns:
             对话结果
         """
-        start_time = time.time()
+        timestamp_start = time.time()
         
         try:
-            user_text = request.text or request.extra_params.get("text", "")
+            user_text = request.text
+            if not user_text and request.extra_params:
+                user_text = request.extra_params.get("text", "")
             user_id = request.user_id or "unknown"
             
             if not user_text:
-                return self._error_result(start_time, "输入文本不能为空")
+                return self._error_result(timestamp_start, "输入文本不能为空")
             
             self.logger.info(f"处理对话 用户: {user_id} 文本: {user_text[:50]}")
             
             # 分类意图
-            intent = self._classify_intent(user_text)
+            intent, intent_confidence = self._classify_intent(user_text)
             
             # 提取实体
             entities = self._extract_entities(user_text)
@@ -92,25 +95,29 @@ class DialogExpert(Expert):
             })
             
             # 构建结果
+            timestamp_end = time.time()
+            confidence = max(0.0, min(1.0, intent_confidence))
             result_data = {
                 "user_input": user_text,
                 "response": response,
                 "intent": intent,
+                "intent_confidence": intent_confidence,
                 "entities": entities,
-                "confidence": 0.85,
-                "conversation_id": user_id
+                "conversation_id": user_id,
             }
-            
+
             return ExpertResult(
-                status="success",
-                data=result_data,
-                confidence=0.85,
-                execution_time=time.time() - start_time
+                expert_name=self.name,
+                result=result_data,
+                confidence=confidence,
+                metadata={"version": self.version},
+                timestamp_start=timestamp_start,
+                timestamp_end=timestamp_end,
             )
             
         except Exception as e:
             self.logger.error(f"对话处理失败: {str(e)}")
-            return self._error_result(start_time, f"处理错误: {str(e)}")
+            return self._error_result(timestamp_start, f"处理错误: {str(e)}")
     
     async def _generate_response(
         self, user_text: str, intent: str,
@@ -148,13 +155,23 @@ class DialogExpert(Expert):
         - OpenAI 兼容接口
         """
         try:
-            # 尝试 DeepSeek API
-            if self._llm_api_key:
-                return await self._call_deepseek(user_text, intent, entities)
-            
-            # 尝试通用 LLM 接口
-            return await self._call_generic_llm(user_text, intent, entities)
-            
+            if not self._llm.is_available():
+                return None
+
+            system_prompt = """你是一个专业的股票投资顾问。
+用户提出的问题都与股票分析、投资决策有关。
+请用中文回答，保持专业、友好的语气。
+回答要简洁明了，控制在 100 字以内。"""
+
+            content = await self._llm.chat(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_text},
+                ],
+                temperature=0.7,
+                max_tokens=150,
+            )
+            return content
         except Exception as e:
             self.logger.warning(f"LLM 调用失败: {str(e)}")
             return None
@@ -266,20 +283,24 @@ class DialogExpert(Expert):
         
         return responses.get(intent, f"我理解您在询问关于{intent}的问题。我很乐意帮助您。")
     
-    def _classify_intent(self, user_text: str) -> str:
+    def _classify_intent(self, user_text: str) -> Tuple[str, float]:
         """分类用户意图"""
         user_text_lower = user_text.lower()
         
         best_intent = "knowledge_query"
         best_score = 0
+        best_total = 1
         
         for intent, keywords in self._intents.items():
-            score = sum(1 for kw in keywords if kw in user_text_lower)
+            score = sum(1 for kw in keywords if kw.lower() in user_text_lower)
             if score > best_score:
                 best_score = score
                 best_intent = intent
+                best_total = max(len(keywords), 1)
         
-        return best_intent
+        effective_total = max(1, best_total - 1)
+        confidence = min(1.0, best_score / effective_total) if best_score > 0 else 0.2
+        return best_intent, confidence
     
     def _extract_entities(self, user_text: str) -> Dict[str, List[str]]:
         """
@@ -290,15 +311,11 @@ class DialogExpert(Expert):
         - 技术指标（MA, RSI, MACD）
         - 时间表达（今天、周、月）
         """
-        entities = {
-            "stocks": [],
-            "indicators": [],
-            "timeframes": []
-        }
+        entities = {"stock_symbols": [], "indicators": [], "timeframes": []}
         
         # 提取股票代码
-        stock_pattern = r'\b[0-9]{6}\.(SH|SZ|HK)\b'
-        entities["stocks"] = re.findall(stock_pattern, user_text, re.IGNORECASE)
+        stock_pattern = r"\b[0-9]{6}\.(?:SH|SZ|HK)\b"
+        entities["stock_symbols"] = re.findall(stock_pattern, user_text, re.IGNORECASE)
         
         # 提取技术指标
         indicators = ["MA", "RSI", "MACD", "布林带", "KDJ", "CCI"]
@@ -314,11 +331,15 @@ class DialogExpert(Expert):
         
         return entities
     
-    def _error_result(self, start_time: float, error_msg: str) -> ExpertResult:
+    def _error_result(self, timestamp_start: float, error_msg: str) -> ExpertResult:
         """返回错误结果"""
+        timestamp_end = time.time()
         return ExpertResult(
-            status="error",
-            data={"error": error_msg},
+            expert_name=self.name,
+            result={"error": error_msg},
             confidence=0.0,
-            execution_time=time.time() - start_time
+            metadata={"version": self.version},
+            timestamp_start=timestamp_start,
+            timestamp_end=timestamp_end,
+            error=error_msg,
         )

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { clearApiToken, getApiToken, setApiToken, systemAPI } from '../services/api';
 
 interface HeaderProps {
   user?: any;
@@ -8,6 +9,36 @@ interface HeaderProps {
  * 页面头部组件
  */
 const Header: React.FC<HeaderProps> = ({ user }) => {
+  const [token, setToken] = useState(getApiToken());
+  const [me, setMe] = useState<any | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refreshMe = async () => {
+    try {
+      setError(null);
+      const data = await systemAPI.me();
+      setMe(data);
+    } catch (e: any) {
+      setMe(null);
+      setError(e?.message || '无法获取用户信息');
+    }
+  };
+
+  useEffect(() => {
+    refreshMe();
+  }, []);
+
+  const applyToken = async () => {
+    setApiToken(token.trim());
+    await refreshMe();
+  };
+
+  const removeToken = async () => {
+    clearApiToken();
+    setToken('');
+    await refreshMe();
+  };
+
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
       <div className="flex items-center justify-between px-6 py-4">
@@ -22,6 +53,27 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
         </div>
 
         <div className="flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-2">
+            <input
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder="API Token"
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+            <button
+              onClick={applyToken}
+              className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+            >
+              应用
+            </button>
+            <button
+              onClick={removeToken}
+              className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200"
+            >
+              清除
+            </button>
+          </div>
+
           {/* 通知 */}
           <button className="relative text-gray-600 hover:text-blue-600">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -37,7 +89,9 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
             </div>
             <div className="hidden sm:block">
               <p className="text-sm font-medium text-gray-800">{user?.name || '用户'}</p>
-              <p className="text-xs text-gray-500">{user?.email || 'user@example.com'}</p>
+              <p className="text-xs text-gray-500">
+                {error ? error : (me?.user_id ? `user_id: ${me.user_id}` : (user?.email || 'user@example.com'))}
+              </p>
             </div>
           </div>
         </div>

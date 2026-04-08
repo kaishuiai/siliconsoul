@@ -6,6 +6,7 @@ import { Link, useLocation } from 'react-router-dom';
  */
 const Navigation: React.FC = () => {
   const location = useLocation();
+  const cfoUrl = process.env.REACT_APP_CFO_URL || 'http://localhost:8501';
 
   const isActive = (path: string) => {
     return location.pathname === path ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50';
@@ -50,6 +51,24 @@ const Navigation: React.FC = () => {
           >
             📚 知识库
           </Link>
+        </li>
+        <li>
+          <Link
+            to="/history"
+            className={`block px-4 py-2 rounded-lg transition ${isActive('/history')}`}
+          >
+            历史/复盘
+          </Link>
+        </li>
+        <li>
+          <a
+            href={cfoUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="block px-4 py-2 rounded-lg transition text-gray-700 hover:bg-gray-50"
+          >
+            🧾 子业务/CFO分析
+          </a>
         </li>
       </ul>
 

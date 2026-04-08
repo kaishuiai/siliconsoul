@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import StockChart from '../components/StockChart';
+import { stockAPI } from '../services/api';
 
 /**
  * 详细股票分析页面
@@ -7,6 +8,38 @@ import StockChart from '../components/StockChart';
 const StockAnalysis: React.FC = () => {
   const [symbol, setSymbol] = useState('600000.SH');
   const [period, setPeriod] = useState(60);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [analysis, setAnalysis] = useState<any | null>(null);
+
+  const stockExpertResult = useMemo(() => {
+    if (!analysis?.expert_results) return null;
+    return analysis.expert_results.find((r: any) => r.expert_name === 'StockAnalysisExpert') || null;
+  }, [analysis]);
+
+  const signal = stockExpertResult?.result?.signal ?? null;
+  const confidence = stockExpertResult?.result?.confidence ?? null;
+  const indicators = stockExpertResult?.result?.indicators ?? null;
+  const levels = stockExpertResult?.result?.support_resistance ?? null;
+  const trend = stockExpertResult?.result?.trend ?? null;
+
+  const onAnalyze = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [historyResp, analyzeResp] = await Promise.all([
+        stockAPI.getHistory(symbol, period),
+        stockAPI.analyze(symbol, ['MA', 'RSI', 'MACD', 'Bollinger'], period),
+      ]);
+      setHistory(historyResp?.data || []);
+      setAnalysis(analyzeResp || null);
+    } catch (e: any) {
+      setError(e?.message || '请求失败');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="p-6">
@@ -46,38 +79,48 @@ const StockAnalysis: React.FC = () => {
           </div>
 
           <div className="flex items-end">
-            <button className="w-full px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-              开始分析
+            <button
+              className="w-full px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              onClick={onAnalyze}
+              disabled={loading}
+            >
+              {loading ? '分析中...' : '开始分析'}
             </button>
           </div>
         </div>
       </div>
 
-      {/* 分析结果展示（占位符） */}
+      {error && (
+        <div className="mb-8 bg-red-50 border border-red-200 text-red-700 rounded p-4">
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* 主要图表 */}
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h3 className="text-lg font-semibold mb-4">技术指标分析</h3>
-            <div className="h-64 flex items-center justify-center bg-gray-50 rounded">
-              <p className="text-gray-500">图表加载中...</p>
-            </div>
-          </div>
+          <StockChart data={history} title="技术指标分析" symbol={symbol} />
 
           <div className="bg-white rounded-lg shadow-md p-6">
             <h3 className="text-lg font-semibold mb-4">支撑/阻力位</h3>
             <div className="space-y-2">
               <div className="flex justify-between p-2 border-b">
                 <span className="text-gray-600">第一阻力位</span>
-                <span className="font-semibold">¥10.85</span>
+                <span className="font-semibold">
+                  {levels?.resistance_1 != null ? levels.resistance_1.toFixed(2) : '-'}
+                </span>
               </div>
               <div className="flex justify-between p-2 border-b">
                 <span className="text-gray-600">第一支撑位</span>
-                <span className="font-semibold">¥10.45</span>
+                <span className="font-semibold">
+                  {levels?.support_1 != null ? levels.support_1.toFixed(2) : '-'}
+                </span>
               </div>
               <div className="flex justify-between p-2">
-                <span className="text-gray-600">第二支撑位</span>
-                <span className="font-semibold">¥10.10</span>
+                <span className="text-gray-600">趋势</span>
+                <span className="font-semibold">
+                  {trend?.direction ? `${trend.direction} (${Math.round((trend.strength || 0) * 100)}%)` : '-'}
+                </span>
               </div>
             </div>
           </div>
@@ -89,16 +132,18 @@ const StockAnalysis: React.FC = () => {
             <h3 className="text-lg font-semibold mb-4">交易信号</h3>
             <div className="space-y-3">
               <div className="p-3 bg-green-50 rounded border-l-4 border-green-500">
-                <p className="text-sm text-gray-600">买入信号</p>
-                <p className="font-semibold text-green-600">强烈看涨</p>
+                <p className="text-sm text-gray-600">信号</p>
+                <p className="font-semibold text-green-600">{signal || '-'}</p>
               </div>
               <div className="p-3 bg-blue-50 rounded border-l-4 border-blue-500">
                 <p className="text-sm text-gray-600">置信度</p>
-                <p className="font-semibold text-blue-600">82%</p>
+                <p className="font-semibold text-blue-600">
+                  {confidence != null ? `${Math.round(confidence * 100)}%` : '-'}
+                </p>
               </div>
               <div className="p-3 bg-amber-50 rounded border-l-4 border-amber-500">
-                <p className="text-sm text-gray-600">风险等级</p>
-                <p className="font-semibold text-amber-600">中等</p>
+                <p className="text-sm text-gray-600">一致性</p>
+                <p className="font-semibold text-amber-600">{analysis?.consensus_level || '-'}</p>
               </div>
             </div>
           </div>
@@ -108,15 +153,17 @@ const StockAnalysis: React.FC = () => {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">RSI</span>
-                <span className="font-semibold">65</span>
+                <span className="font-semibold">{indicators?.RSI?.value ?? '-'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">MACD</span>
-                <span className="font-semibold">正</span>
+                <span className="font-semibold">{indicators?.MACD?.Histogram ?? '-'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">KDJ</span>
-                <span className="font-semibold">75</span>
+                <span className="text-gray-600">MA20</span>
+                <span className="font-semibold">
+                  {indicators?.MA?.MA20 != null ? indicators.MA.MA20.toFixed(2) : '-'}
+                </span>
               </div>
             </div>
           </div>

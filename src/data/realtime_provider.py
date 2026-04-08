@@ -81,11 +81,21 @@ class RealtimeDataProvider:
             if symbol not in self._task_manager:
                 task = asyncio.create_task(self._stream_data(symbol))
                 self._task_manager[symbol] = task
+                await asyncio.sleep(0)
+                if task.done():
+                    exc = task.exception()
+                    if exc is not None:
+                        await self.unsubscribe(symbol)
+                        return False
             
             return True
             
         except Exception as e:
             self.logger.error(f"订阅失败 {symbol}: {str(e)}")
+            if callback and symbol in self._callbacks and callback in self._callbacks[symbol]:
+                self._callbacks[symbol].remove(callback)
+            if symbol in self._callbacks and not self._callbacks[symbol]:
+                del self._callbacks[symbol]
             return False
     
     async def unsubscribe(self, symbol: str) -> bool:
@@ -105,6 +115,10 @@ class RealtimeDataProvider:
             if symbol in self._task_manager:
                 task = self._task_manager[symbol]
                 task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
                 del self._task_manager[symbol]
             
             # 清除回调和缓存
@@ -350,8 +364,11 @@ class RealtimeDataProvider:
         self.logger.info("清理 WebSocket 资源")
         
         # 取消所有任务
-        for task in self._task_manager.values():
+        tasks = list(self._task_manager.values())
+        for task in tasks:
             task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
         
         self._task_manager.clear()
         self._callbacks.clear()

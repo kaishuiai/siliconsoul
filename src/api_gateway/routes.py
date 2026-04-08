@@ -25,7 +25,16 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
     @gateway.route("/api/health", methods=["GET"])
     async def health_check(body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Health check endpoint"""
-        return {"status": "healthy", "version": "1.0.0"}
+        monitor_status = orchestrator.monitor.get_status() if hasattr(orchestrator, "monitor") else {}
+        version = "1.0.0"
+        if hasattr(orchestrator, "config_manager"):
+            version = str(orchestrator.config_manager.get("system.version", version))
+        return {
+            "status": "healthy",
+            "version": version,
+            "uptime": monitor_status.get("uptime", "0d 0h"),
+            "request_count": int(monitor_status.get("total_requests", getattr(orchestrator, "request_count", 0))),
+        }
 
     @gateway.route("/api/me", methods=["GET"])
     async def me(body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -87,10 +96,12 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
             expert_names=expert_names,
         )
 
-        return {
-            "request_id": results.get("request_id") if isinstance(results, dict) else None,
-            "results": results,
-        }
+        if isinstance(results, dict):
+            payload = dict(results)
+            payload["request_id"] = results.get("request_id")
+            payload["results"] = results
+            return payload
+        return {"results": results}
 
     # Batch Process
     @gateway.route("/api/batch", methods=["POST"])
@@ -123,6 +134,17 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
     @gateway.route("/api/monitor/metrics", methods=["GET"])
     async def get_metrics(body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Get system metrics"""
+        out = orchestrator.monitor.get_metrics()
+        if isinstance(out, dict):
+            metrics = out.get("metrics")
+            if isinstance(metrics, dict):
+                return metrics
+        return {}
+
+    # Monitor - Status
+    @gateway.route("/api/monitor/status", methods=["GET"])
+    async def get_monitor_status(body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Get system status"""
         return orchestrator.monitor.get_status()
 
     # Monitor - Stats

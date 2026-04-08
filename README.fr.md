@@ -17,6 +17,8 @@ Langues :
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script) : README.mn.md
 - العربية : README.ar.md
 
+> Statut de mise à jour (2026-04-08) : démarrage de la PRD Phase 0 « contract convergence », avec alignement compatible des réponses API et des champs de base health/monitor.
+
 ## Usage / Valeur / Positionnement / Différences
 
 SiliconSoul est un prototype de produit d’aide à la décision multi‑agents (MOE) pour fondateurs, opérateurs, investisseurs et CFO. Il combine des entrées multi‑documents (PDF/Excel/PPT/Word) avec un raisonnement parallèle d’experts afin de produire des conclusions avec preuves, une liste structurée des éléments manquants, et un historique rejouable.

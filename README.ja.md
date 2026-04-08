@@ -17,6 +17,8 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
+> 更新状況（2026-04-08）：PRD Phase 0「contract convergence」を開始し、API レスポンス（互換モード）と health/monitor の基礎項目を整合中です。
+
 ## 用途 / 価値 / 位置づけ / 差別化
 
 SiliconSoul は、創業者・経営者・投資家・CFO 向けの多エージェント（MOE）意思決定支援プロダクトのプロトタイプです。複数ドキュメント（PDF/Excel/PPT/Word）を入力し、複数の専門家エージェントが並列推論して、根拠付きの結論、構造化された不足資料リスト、そして再現可能な履歴を出力します。

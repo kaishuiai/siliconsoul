@@ -17,6 +17,8 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ（Mongolian, traditional script）：README.mn.md
 - العربية：README.ar.md
 
+> 更新状态（2026-04-08）：已进入 PRD Phase 0「契约收敛」，统一 API 返回口径（兼容模式）并补齐 health/monitor 基础字段。
+
 ## 项目用途 / 价值 / 定位 / 差异点
 
 SiliconSoul 是面向创始人、经营管理者、投研与 CFO 的多智能体（MOE）决策支持产品原型：把业务/财务材料（PDF/Excel/PPT/Word）与多专家并行推理结合，输出带证据的结论、结构化缺口清单与可复盘历史。

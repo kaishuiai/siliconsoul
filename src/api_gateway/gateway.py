@@ -4,9 +4,10 @@ API Gateway
 Core API gateway for SiliconSoul.
 """
 
-from typing import Dict, Any, Optional, Callable, List
-from datetime import datetime
 import inspect
+import time
+from datetime import datetime
+from typing import Dict, Any, Optional, Callable, List
 from src.logging.logger import get_logger
 
 logger = get_logger("api_gateway")
@@ -167,19 +168,28 @@ class APIGateway:
 
     def _success_response(self, data: Any) -> Dict[str, Any]:
         """Create success response"""
+        now = datetime.now().isoformat()
+        ts = time.time()
         return {
+            "success": True,
             "status": "success",
             "data": data,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": ts,
+            "timestamp_iso": now,
         }
 
     def _error_response(self, status_code: int, message: str) -> Dict[str, Any]:
         """Create error response"""
+        now = datetime.now().isoformat()
+        ts = time.time()
         return {
+            "success": False,
             "status": "error",
             "code": status_code,
             "message": message,
-            "timestamp": datetime.now().isoformat(),
+            "error": {"code": status_code, "message": message},
+            "timestamp": ts,
+            "timestamp_iso": now,
         }
 
     def get_stats(self) -> Dict[str, Any]:

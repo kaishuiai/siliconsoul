@@ -292,10 +292,16 @@ def _process_prompt(prompt: str) -> None:
             try:
                 resp = requests.post(f"{api_url}/process", json=body, headers=headers if headers else None, timeout=120)
                 payload = resp.json()
-                if not isinstance(payload, dict) or payload.get("status") != "success":
+                ok = isinstance(payload, dict) and (payload.get("status") == "success" or payload.get("success") is True)
+                if not ok:
                     raise ValueError(payload.get("message") if isinstance(payload, dict) else "request failed")
                 data = payload.get("data") or {}
-                results = data.get("results") if isinstance(data, dict) else None
+                results = None
+                if isinstance(data, dict):
+                    if isinstance(data.get("results"), dict):
+                        results = data.get("results")
+                    else:
+                        results = data
                 if not isinstance(results, dict):
                     raise ValueError("bad response")
 

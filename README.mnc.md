@@ -17,6 +17,8 @@
 - Mongolian (traditional script): README.mn.md
 - العربية: README.ar.md
 
+> Update status (2026-04-08): PRD Phase 0 “contract convergence” is in progress.
+
 ᠠᠮᠪᠠ ᠰᡝᡳᠴᡝᠨ:
 
 SiliconSoul ᠪᡝ ᠵᡝᠨᠵᡠᡝᠯᡝᠮᡝ ᡩᡝ ᠠᠷᡤᠠᠨ ᠪᡝ ᠵᡝᠪᠰᡝᠮᡝ ᠨᡳᠶᠠᠯᠮᠠ ᠮᡠᠰᡝ ᠠᠪᡥᠠᠮᠪᡳ (multi-agent / MOE) ᠠᠯᡳᠨ ᡩᡝ ᡳᡵᡤᡝᠪᡝ ᠪᡝ ᠠᠯᡳᠪᡳ ᡳᠰᡝᠮᡝ ᠪᡝ ᡩᡝᠷᡤᡳ ᡩᡝ ᠪᡝᠰᡝᠮᡝ ᡩᡝ ᡩᡝᠷᡤᡳ ᡳᠰᡝᠮᡝ.

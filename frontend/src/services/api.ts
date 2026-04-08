@@ -40,23 +40,26 @@ api.interceptors.response.use(
 );
 
 type ApiSuccess<T> = {
+  success?: boolean;
   status: 'success';
   data: T;
-  timestamp?: string;
+  timestamp?: string | number;
 };
 
 type ApiError = {
+  success?: boolean;
   status: 'error';
   code?: number;
   message?: string;
-  timestamp?: string;
+  error?: { code?: number; message?: string };
+  timestamp?: string | number;
 };
 
 const unwrap = <T>(resp: any): T => {
-  if (resp && resp.status === 'success') return (resp as ApiSuccess<T>).data;
-  if (resp && resp.status === 'error') {
+  if (resp && (resp.success === true || resp.status === 'success')) return (resp as ApiSuccess<T>).data;
+  if (resp && (resp.success === false || resp.status === 'error')) {
     const err = resp as ApiError;
-    throw new Error(err.message || '请求失败');
+    throw new Error(err.message || err.error?.message || '请求失败');
   }
   return resp as T;
 };
@@ -142,10 +145,11 @@ export const portfolioAPI = {
 };
 
 export const systemAPI = {
-  health: () => get<{ status: string; version: string }>('/health'),
+  health: () => get<{ status: string; version: string; uptime?: string; request_count?: number }>('/health'),
   me: () => get<{ user_id: string; auth_enabled: boolean }>('/me'),
   experts: () => get<{ experts: Array<{ name: string; version: string; supported_tasks: string[] }> }>('/experts'),
   metrics: () => get<any>('/monitor/metrics'),
+  monitorStatus: () => get<any>('/monitor/status'),
   stats: () => get<any>('/monitor/stats'),
   getConfig: () => get<any>('/config'),
   setConfig: (key: string, value: any) => post<any>('/config', { key, value }),

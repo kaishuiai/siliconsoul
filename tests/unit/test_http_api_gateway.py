@@ -39,11 +39,14 @@ async def test_gateway_supports_path_params_and_value_error_to_400():
 
     resp = await gateway.handle_request("GET", "/api/experts/DemoExpert", None)
     assert resp["status"] == "success"
+    assert resp["success"] is True
     assert resp["data"]["name"] == "DemoExpert"
 
     resp = await gateway.handle_request("GET", "/api/experts/NoSuchExpert", None)
     assert resp["status"] == "error"
+    assert resp["success"] is False
     assert resp["code"] == 400
+    assert isinstance(resp.get("error"), dict)
 
 
 @pytest.mark.asyncio
@@ -55,6 +58,7 @@ async def test_gateway_process_and_batch_and_config():
     resp = await gateway.handle_request("POST", "/api/process", {"text": "hi", "task_type": "demo", "context": {"a": 1}})
     assert resp["status"] == "success"
     assert resp["data"]["results"]["echo"] == "hi"
+    assert resp["data"]["echo"] == "hi"
 
     resp = await gateway.handle_request("POST", "/api/batch", {"requests": [{"text": "a"}, {"text": "b"}]})
     assert resp["status"] == "success"
@@ -64,3 +68,24 @@ async def test_gateway_process_and_batch_and_config():
     resp = await gateway.handle_request("GET", "/api/config", None)
     assert resp["status"] == "success"
     assert "moe" in resp["data"]
+
+
+@pytest.mark.asyncio
+async def test_gateway_health_and_monitor_contract():
+    gateway = APIGateway()
+    orchestrator = _DummyOrchestrator()
+    create_routes(gateway, orchestrator)
+
+    health = await gateway.handle_request("GET", "/api/health", None)
+    assert health["status"] == "success"
+    assert "version" in health["data"]
+    assert "uptime" in health["data"]
+    assert "request_count" in health["data"]
+
+    m_status = await gateway.handle_request("GET", "/api/monitor/status", None)
+    assert m_status["status"] == "success"
+    assert "total_requests" in m_status["data"]
+
+    m_metrics = await gateway.handle_request("GET", "/api/monitor/metrics", None)
+    assert m_metrics["status"] == "success"
+    assert isinstance(m_metrics["data"], dict)

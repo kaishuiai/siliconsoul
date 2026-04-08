@@ -29,6 +29,7 @@ python -m src.api_server.server
 - POST /api/process
 - POST /api/batch
 - GET /api/monitor/metrics
+- GET /api/monitor/status
 - GET /api/monitor/stats
 - GET /api/config
 - POST /api/config
@@ -55,6 +56,16 @@ python -m src.api_server.server
 - consensus_level：high/medium/low/none
 - only_errors：true/false
 - since/until：ISO 时间范围
+
+### 响应 envelope（兼容模式）
+
+当前后端会同时返回以下字段以兼容新旧客户端：
+
+- success: true/false
+- status: success/error
+- data（成功时）
+- error/code/message（失败时）
+- timestamp（unix float）与 timestamp_iso（ISO 字符串）
 
 ## Table of Contents
 1. [MOEOrchestrator](#moeorchestrator)

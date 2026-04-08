@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> 업데이트 상태(2026-04-08): PRD Phase 1(8차 배치)에서 퀵액션 작업 영수증(상태/new request ID/소요시간)과 JSON/MD 내보내기·필터를 추가했습니다.
+> 업데이트 상태(2026-04-08): PRD Phase 1(9차 배치)에서 ChatGPT 스타일 멀티 세션 대화 홈(세션 관리/생성 중지/재생성/유사 스트리밍)을 추가했습니다.
 
 ## 용도 / 가치 / 포지셔닝 / 차별점
 

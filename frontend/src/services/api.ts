@@ -163,7 +163,7 @@ export const chatAPI = {
     user_id?: string;
     extra_params?: Record<string, any>;
     expert_names?: string[];
-  }) => post<any>('/process', body),
+  }, config?: any) => post<any>('/process', body, config),
 };
 
 export const historyAPI = {

@@ -8,6 +8,17 @@ type Msg = {
   ts: string;
 };
 
+type Session = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  taskType: string;
+  expertName: string;
+  archived?: boolean;
+  messages: Msg[];
+};
+
 interface ChatHomeProps {
   user?: any;
 }
@@ -19,6 +30,8 @@ const TASK_OPTIONS = [
   { label: '知识问答', value: 'knowledge_qa' },
 ];
 
+const STORE_KEY = 'chat_home_sessions_v1';
+
 const toText = (obj: any): string => {
   if (obj == null) return '';
   if (typeof obj === 'string') return obj;
@@ -28,16 +41,7 @@ const toText = (obj: any): string => {
 
 const extractAssistantText = (resp: any): string => {
   const fr = resp?.final_result || {};
-  const candidates = [
-    fr.answer,
-    fr.response,
-    fr.reply,
-    fr.message,
-    fr.summary,
-    fr.recommendation,
-    fr.final_decision,
-    fr.analysis,
-  ];
+  const candidates = [fr.answer, fr.response, fr.reply, fr.message, fr.summary, fr.recommendation, fr.final_decision, fr.analysis];
   for (const c of candidates) {
     const s = toText(c).trim();
     if (s) return s;
@@ -52,23 +56,65 @@ const extractAssistantText = (resp: any): string => {
   return '已收到请求，但模型未返回可展示文本。';
 };
 
+const defaultWelcome = (): Msg => ({
+  id: `welcome_${Date.now()}`,
+  role: 'assistant',
+  content: '你好，我是 SiliconSoul AI 助手。你可以选择不同 Agent 与我对话。',
+  ts: new Date().toISOString(),
+});
+
+const makeSession = (): Session => {
+  const now = new Date().toISOString();
+  return {
+    id: `conv_${Date.now()}_${Math.random().toString(16).slice(2, 6)}`,
+    title: '新对话',
+    createdAt: now,
+    updatedAt: now,
+    taskType: 'dialog',
+    expertName: '',
+    archived: false,
+    messages: [defaultWelcome()],
+  };
+};
+
 const ChatHome: React.FC<ChatHomeProps> = ({ user }) => {
-  const [messages, setMessages] = useState<Msg[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content: '你好，我是 SiliconSoul AI 助手。你可以选择不同 Agent 与我对话。',
-      ts: new Date().toISOString(),
-    },
-  ]);
+  const [sessions, setSessions] = useState<Session[]>(() => {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return [makeSession()];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed) || parsed.length === 0) return [makeSession()];
+      return parsed;
+    } catch {
+      return [makeSession()];
+    }
+  });
+  const [activeId, setActiveId] = useState<string>(() => {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return '';
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed[0].id;
+      return '';
+    } catch {
+      return '';
+    }
+  });
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
-  const [taskType, setTaskType] = useState<string>('dialog');
   const [experts, setExperts] = useState<Array<{ name: string; supported_tasks: string[] }>>([]);
-  const [expertName, setExpertName] = useState<string>('');
-  const [error, setError] = useState<string>('');
-  const [conversationId] = useState<string>(() => `conv_${Date.now()}`);
+  const [error, setError] = useState('');
   const listRef = useRef<HTMLDivElement | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const streamTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!activeId && sessions.length > 0) setActiveId(sessions.find((x) => !x.archived)?.id || sessions[0].id);
+  }, [activeId, sessions]);
+
+  useEffect(() => {
+    localStorage.setItem(STORE_KEY, JSON.stringify(sessions));
+  }, [sessions]);
 
   useEffect(() => {
     (async () => {
@@ -78,7 +124,18 @@ const ChatHome: React.FC<ChatHomeProps> = ({ user }) => {
       } catch {
       }
     })();
+    return () => {
+      if (streamTimerRef.current) window.clearInterval(streamTimerRef.current);
+      if (abortRef.current) abortRef.current.abort();
+    };
   }, []);
+
+  const visibleSessions = useMemo(
+    () => sessions.filter((x) => !x.archived).sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)),
+    [sessions]
+  );
+  const activeSession = useMemo(() => sessions.find((x) => x.id === activeId) || visibleSessions[0] || null, [sessions, activeId, visibleSessions]);
+  const messages = activeSession?.messages || [];
 
   useEffect(() => {
     if (!listRef.current) return;
@@ -86,120 +143,237 @@ const ChatHome: React.FC<ChatHomeProps> = ({ user }) => {
   }, [messages, sending]);
 
   const availableExperts = useMemo(() => {
-    if (!taskType) return experts;
-    return experts.filter((x) => Array.isArray(x.supported_tasks) && x.supported_tasks.includes(taskType));
-  }, [experts, taskType]);
+    if (!activeSession) return [];
+    if (!activeSession.taskType) return experts;
+    return experts.filter((x) => Array.isArray(x.supported_tasks) && x.supported_tasks.includes(activeSession.taskType));
+  }, [experts, activeSession]);
+
+  const updateActiveSession = (updater: (s: Session) => Session) => {
+    if (!activeSession) return;
+    setSessions((prev) => prev.map((s) => (s.id === activeSession.id ? updater(s) : s)));
+  };
+
+  const streamToMessage = (messageId: string, fullText: string): Promise<void> =>
+    new Promise((resolve) => {
+      if (streamTimerRef.current) window.clearInterval(streamTimerRef.current);
+      let index = 0;
+      streamTimerRef.current = window.setInterval(() => {
+        index += Math.max(1, Math.ceil(fullText.length / 120));
+        const part = fullText.slice(0, index);
+        setSessions((prev) =>
+          prev.map((s) => ({
+            ...s,
+            messages: s.messages.map((m) => (m.id === messageId ? { ...m, content: part } : m)),
+          }))
+        );
+        if (index >= fullText.length) {
+          if (streamTimerRef.current) window.clearInterval(streamTimerRef.current);
+          streamTimerRef.current = null;
+          resolve();
+        }
+      }, 12);
+    });
+
+  const requestReply = async (text: string, historyMsgs: Msg[], appendUser: boolean) => {
+    if (!activeSession || sending) return;
+    setError('');
+    const now = new Date().toISOString();
+    let reqHistory = historyMsgs;
+    if (appendUser) {
+      const userMsg: Msg = { id: `u_${Date.now()}`, role: 'user', content: text, ts: now };
+      reqHistory = [...historyMsgs, userMsg];
+      updateActiveSession((s) => ({
+        ...s,
+        title: s.title === '新对话' ? text.slice(0, 20) : s.title,
+        updatedAt: now,
+        messages: reqHistory,
+      }));
+      setInput('');
+    }
+
+    const assistantId = `a_${Date.now()}`;
+    updateActiveSession((s) => ({
+      ...s,
+      updatedAt: now,
+      messages: [...reqHistory, { id: assistantId, role: 'assistant', content: '', ts: now }],
+    }));
+
+    setSending(true);
+    try {
+      abortRef.current = new AbortController();
+      const body: any = {
+        text,
+        task_type: activeSession.taskType,
+        user_id: user?.id || 'frontend_user',
+        context: {
+          conversation_id: activeSession.id,
+          history: reqHistory.map((m) => ({ role: m.role, content: m.content, ts: m.ts })),
+        },
+      };
+      if (activeSession.expertName) body.expert_names = [activeSession.expertName];
+      const resp = await chatAPI.process(body, { signal: abortRef.current.signal });
+      await streamToMessage(assistantId, extractAssistantText(resp));
+    } catch (e: any) {
+      const isCanceled = e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED' || /canceled/i.test(String(e?.message || ''));
+      if (isCanceled) {
+        updateActiveSession((s) => ({
+          ...s,
+          updatedAt: new Date().toISOString(),
+          messages: s.messages.map((m) => (m.id === assistantId ? { ...m, role: 'system', content: '已停止生成' } : m)),
+        }));
+      } else {
+        setError(e?.message || '发送失败');
+        updateActiveSession((s) => ({
+          ...s,
+          updatedAt: new Date().toISOString(),
+          messages: s.messages.map((m) => (m.id === assistantId ? { ...m, role: 'system', content: `请求失败：${e?.message || '未知错误'}` } : m)),
+        }));
+      }
+    } finally {
+      abortRef.current = null;
+      setSending(false);
+    }
+  };
 
   const send = async () => {
     const text = input.trim();
-    if (!text || sending) return;
-    setError('');
-    const userMsg: Msg = { id: `u_${Date.now()}`, role: 'user', content: text, ts: new Date().toISOString() };
-    const nextMessages = [...messages, userMsg];
-    setMessages(nextMessages);
+    if (!text || !activeSession) return;
+    await requestReply(text, activeSession.messages, true);
+  };
+
+  const stop = () => {
+    if (abortRef.current) abortRef.current.abort();
+    if (streamTimerRef.current) {
+      window.clearInterval(streamTimerRef.current);
+      streamTimerRef.current = null;
+    }
+  };
+
+  const regenerate = async () => {
+    if (!activeSession || sending) return;
+    const msgs = activeSession.messages;
+    let i = msgs.length - 1;
+    while (i >= 0 && msgs[i].role !== 'user') i -= 1;
+    if (i < 0) return;
+    const lastUser = msgs[i];
+    const base = msgs.slice(0, i + 1);
+    updateActiveSession((s) => ({ ...s, messages: base, updatedAt: new Date().toISOString() }));
+    await requestReply(lastUser.content, base, false);
+  };
+
+  const createNew = () => {
+    const s = makeSession();
+    setSessions((prev) => [s, ...prev]);
+    setActiveId(s.id);
     setInput('');
-    setSending(true);
-    try {
-      const body: any = {
-        text,
-        task_type: taskType,
-        user_id: user?.id || 'frontend_user',
-        context: {
-          conversation_id: conversationId,
-          history: nextMessages.map((m) => ({ role: m.role, content: m.content, ts: m.ts })),
-        },
-      };
-      if (expertName) body.expert_names = [expertName];
-      const resp = await chatAPI.process(body);
-      const assistantMsg: Msg = {
-        id: `a_${Date.now()}`,
-        role: 'assistant',
-        content: extractAssistantText(resp),
-        ts: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
-    } catch (e: any) {
-      setError(e?.message || '发送失败');
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `err_${Date.now()}`,
-          role: 'system',
-          content: `请求失败：${e?.message || '未知错误'}`,
-          ts: new Date().toISOString(),
-        },
-      ]);
-    } finally {
-      setSending(false);
+    setError('');
+  };
+
+  const renameCurrent = () => {
+    if (!activeSession) return;
+    const next = window.prompt('重命名会话', activeSession.title);
+    if (!next || !next.trim()) return;
+    updateActiveSession((s) => ({ ...s, title: next.trim(), updatedAt: new Date().toISOString() }));
+  };
+
+  const archiveCurrent = () => {
+    if (!activeSession) return;
+    updateActiveSession((s) => ({ ...s, archived: true, updatedAt: new Date().toISOString() }));
+    const next = visibleSessions.find((x) => x.id !== activeSession.id);
+    if (next) setActiveId(next.id);
+    else {
+      const s = makeSession();
+      setSessions((prev) => [s, ...prev]);
+      setActiveId(s.id);
     }
   };
 
   return (
     <div className="h-[calc(100vh-64px)] p-4 md:p-6 flex gap-4">
       <div className="w-80 shrink-0 bg-white rounded-lg shadow-md p-4 h-full overflow-auto">
-        <h2 className="text-lg font-semibold mb-4">AI Agent</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold">会话</h2>
+          <button onClick={createNew} className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">新建</button>
+        </div>
+        <div className="space-y-2 max-h-64 overflow-auto mb-4">
+          {visibleSessions.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setActiveId(s.id)}
+              className={`w-full text-left px-3 py-2 border rounded-lg ${activeSession?.id === s.id ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
+            >
+              <div className="text-sm font-semibold text-gray-800 truncate">{s.title || '新对话'}</div>
+              <div className="text-xs text-gray-500 truncate">{new Date(s.updatedAt).toLocaleString()}</div>
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2 mb-4">
+          <button onClick={renameCurrent} disabled={!activeSession} className="px-2 py-1 border rounded text-xs text-gray-700 disabled:opacity-40">重命名</button>
+          <button onClick={archiveCurrent} disabled={!activeSession} className="px-2 py-1 border rounded text-xs text-gray-700 disabled:opacity-40">归档</button>
+        </div>
         <div className="mb-4">
           <div className="text-sm text-gray-600 mb-2">场景</div>
           <select
-            value={taskType}
-            onChange={(e) => setTaskType(e.target.value)}
+            value={activeSession?.taskType || 'dialog'}
+            onChange={(e) => updateActiveSession((s) => ({ ...s, taskType: e.target.value, expertName: '' }))}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
           >
             {TASK_OPTIONS.map((x) => (
-              <option key={x.value} value={x.value}>
-                {x.label}
-              </option>
+              <option key={x.value} value={x.value}>{x.label}</option>
             ))}
           </select>
         </div>
-        <div className="mb-4">
+        <div className="mb-2">
           <div className="text-sm text-gray-600 mb-2">专家</div>
           <select
-            value={expertName}
-            onChange={(e) => setExpertName(e.target.value)}
+            value={activeSession?.expertName || ''}
+            onChange={(e) => updateActiveSession((s) => ({ ...s, expertName: e.target.value }))}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
           >
             <option value="">自动选择（推荐）</option>
             {availableExperts.map((x) => (
-              <option key={x.name} value={x.name}>
-                {x.name}
-              </option>
+              <option key={x.name} value={x.name}>{x.name}</option>
             ))}
           </select>
         </div>
-        <div className="text-xs text-gray-500">
-          当前会话ID：{conversationId}
-        </div>
+        <div className="text-xs text-gray-500">会话ID：{activeSession?.id || '-'}</div>
       </div>
+
       <div className="flex-1 bg-white rounded-lg shadow-md flex flex-col min-w-0">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h1 className="text-xl font-semibold">AI 对话</h1>
-          <div className="text-xs text-gray-500 mt-1">ChatGPT 风格多 Agent 对话首页</div>
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold">AI 对话</h1>
+            <div className="text-xs text-gray-500 mt-1">多会话 / 多 Agent / 可停止与重生成</div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={regenerate} disabled={sending || !activeSession} className="px-3 py-2 border rounded text-sm text-gray-700 disabled:opacity-40">重新生成</button>
+            <button onClick={stop} disabled={!sending} className="px-3 py-2 border rounded text-sm text-red-600 border-red-200 disabled:opacity-40">停止生成</button>
+          </div>
         </div>
+
         <div ref={listRef} className="flex-1 overflow-auto px-6 py-4 space-y-4 bg-gray-50">
           {messages.map((m) => (
             <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap ${
-                  m.role === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : m.role === 'assistant'
-                      ? 'bg-white border border-gray-200 text-gray-800'
-                      : 'bg-amber-50 border border-amber-200 text-amber-800'
-                }`}
-              >
-                {m.content}
+              <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap ${
+                m.role === 'user'
+                  ? 'bg-blue-600 text-white'
+                  : m.role === 'assistant'
+                    ? 'bg-white border border-gray-200 text-gray-800'
+                    : 'bg-amber-50 border border-amber-200 text-amber-800'
+              }`}>
+                {m.content || (sending && m.role === 'assistant' ? '...' : '')}
               </div>
             </div>
           ))}
           {sending && (
             <div className="flex justify-start">
               <div className="bg-white border border-gray-200 text-gray-500 rounded-2xl px-4 py-3 text-sm">
-                正在思考中...
+                正在生成中...
               </div>
             </div>
           )}
         </div>
+
         <div className="border-t border-gray-200 p-4">
           {error && <div className="text-sm text-red-600 mb-2">{error}</div>}
           <div className="flex gap-3">
@@ -215,11 +389,7 @@ const ChatHome: React.FC<ChatHomeProps> = ({ user }) => {
                 }
               }}
             />
-            <button
-              onClick={send}
-              disabled={sending || !input.trim()}
-              className="self-end px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50"
-            >
+            <button onClick={send} disabled={sending || !input.trim() || !activeSession} className="self-end px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50">
               发送
             </button>
           </div>

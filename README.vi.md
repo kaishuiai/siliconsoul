@@ -17,7 +17,7 @@ Ngôn ngữ:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Trạng thái cập nhật (2026-04-08): PRD Phase 1 (đợt 8) bổ sung operation receipts cho quick-action (trạng thái/new request ID/thời lượng), kèm lọc và xuất JSON/MD.
+> Trạng thái cập nhật (2026-04-08): PRD Phase 1 (đợt 9) ra mắt trang chat kiểu ChatGPT đa phiên với quản lý phiên, dừng sinh, sinh lại và giả lập streaming.
 
 ## Mục đích / Giá trị / Định vị / Khác biệt
 

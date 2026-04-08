@@ -17,7 +17,7 @@ Languages:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Update status (2026-04-08): PRD Phase 1 (batch 8) adds quick-action operation receipts (status/new request ID/duration) with JSON/Markdown export and filtering.
+> Update status (2026-04-08): PRD Phase 1 (batch 9) ships a ChatGPT-style multi-session chat home with session management, stop generation, regenerate, and pseudo-streaming output.
 
 ## Purpose / Value / Positioning / Differentiators
 

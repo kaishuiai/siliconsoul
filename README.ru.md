@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Статус обновления (2026-04-08): PRD Phase 1 (пакет 8) добавляет operation receipts для быстрых действий (статус/new request ID/длительность) с фильтрацией и экспортом JSON/MD.
+> Статус обновления (2026-04-08): PRD Phase 1 (пакет 9) запускает ChatGPT-style multi-session chat home с управлением сессиями, stop generation, regenerate и псевдо-streaming.
 
 ## Назначение / Ценность / Позиционирование / Отличия
 

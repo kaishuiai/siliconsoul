@@ -17,7 +17,7 @@ README Languages:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ（Mongolian, traditional script）：[README.mn.md](README.mn.md)
 - العربية：[README.ar.md](README.ar.md)
 
-> 更新状态（2026-04-08）：PRD Phase 1（第九批）已上线 ChatGPT 风格多会话对话首页（会话管理/停止生成/重新生成/近似流式输出）。
+> 更新状态（2026-04-08）：PRD Phase 1（第十批）已上线服务端流式对话接口、会话云端同步与会话搜索。
 
 ## 项目用途 / 价值 / 定位 / 差异点
 

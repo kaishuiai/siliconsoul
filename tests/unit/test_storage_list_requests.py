@@ -62,3 +62,12 @@ def test_list_requests_filters_by_task_type_memory():
     items = sm.list_requests(user_id="u1", task_type="cfo_chat", limit=10, offset=0)
     assert len(items) == 1
     assert items[0]["task_type"] == "cfo_chat"
+
+
+def test_list_requests_filters_by_conversation_id_memory():
+    sm = StorageManager(storage_type="memory")
+    sm.add_request("u1", "a", {"_meta": {"task_type": "dialog", "conversation_id": "conv-1"}})
+    sm.add_request("u1", "b", {"_meta": {"task_type": "dialog", "conversation_id": "conv-2"}})
+    items = sm.list_requests(user_id="u1", conversation_id="conv-1", limit=10, offset=0)
+    assert len(items) == 1
+    assert items[0]["conversation_id"] == "conv-1"

@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Статус обновления (2026-04-08): PRD Phase 1 (пакет 9) запускает ChatGPT-style multi-session chat home с управлением сессиями, stop generation, regenerate и псевдо-streaming.
+> Статус обновления (2026-04-08): PRD Phase 1 (пакет 10) добавляет серверный streaming API чата, cloud sync сессий и поиск по сессиям.
 
 ## Назначение / Ценность / Позиционирование / Отличия
 

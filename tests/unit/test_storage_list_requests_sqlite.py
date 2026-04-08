@@ -9,8 +9,8 @@ def test_sqlite_list_requests_filters_and_includes_aggregated_fields(tmp_path):
     db_path = tmp_path / "test.db"
     sm = StorageManager(storage_type="sqlite", connection_string=str(db_path))
 
-    r1 = sm.add_request("u1", "first request", {"_meta": {"task_type": "cfo_chat"}})
-    r2 = sm.add_request("u1", "second request", {"_meta": {"task_type": "stock_analysis"}})
+    r1 = sm.add_request("u1", "first request", {"_meta": {"task_type": "cfo_chat", "conversation_id": "conv-1"}})
+    r2 = sm.add_request("u1", "second request", {"_meta": {"task_type": "stock_analysis", "conversation_id": "conv-2"}})
 
     sm.add_result(r1, "DemoExpert", {"ok": True}, 0.5, 1.0, error="boom")
     sm.add_aggregated(r1, {"consensus_level": "high", "overall_confidence": 0.9, "final_result": {}}, 0.9, 1.0)
@@ -48,3 +48,8 @@ def test_sqlite_list_requests_filters_and_includes_aggregated_fields(tmp_path):
     items = sm.list_requests(user_id="u1", task_type="cfo_chat", limit=10, offset=0)
     assert len(items) == 1
     assert items[0]["request_id"] == r1
+    assert items[0]["conversation_id"] == "conv-1"
+
+    items = sm.list_requests(user_id="u1", conversation_id="conv-2", limit=10, offset=0)
+    assert len(items) == 1
+    assert items[0]["request_id"] == r2

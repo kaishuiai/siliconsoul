@@ -53,6 +53,7 @@ python -m src.api_server.server
 - q：按请求文本关键词
 - expert_name：按专家结果过滤（例如 CFOExpert）
 - task_type：按任务类型过滤（例如 cfo_chat）
+- conversation_id：按会话 ID 过滤（用于聊天会话聚合）
 - replay_of：按重放父请求 ID 过滤
 - only_replay：true/false，仅查看重放产生的请求
 - consensus_level：high/medium/low/none
@@ -104,6 +105,12 @@ python -m src.api_server.server
 - final_result：聚合结论对象
 - expert_results：专家结果数组（含 timestamp_start/timestamp_end/error）
 - overall_confidence / consensus_level / duration_ms / num_experts
+
+### POST /api/process/stream
+
+- Content-Type: `text/event-stream`
+- 事件：`start` / `delta` / `done` / `error`
+- 说明：服务端流式返回文本增量（前端可实现 token 级实时渲染）
 
 ### POST /api/history/<user_id>/<request_id>/replay
 

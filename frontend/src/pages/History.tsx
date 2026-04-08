@@ -404,7 +404,7 @@ const History: React.FC = () => {
     setError(null);
     try {
       const t = computeSinceUntil();
-      const resp = await historyAPI.list(targetUserId, q, nextLimit, nextOffset, expertName, replayOf, onlyReplay, consensusLevel, onlyErrors, t.since, t.until, taskType);
+      const resp = await historyAPI.list(targetUserId, q, nextLimit, nextOffset, expertName, '', replayOf, onlyReplay, consensusLevel, onlyErrors, t.since, t.until, taskType);
       setOffset(nextOffset);
       setLimit(nextLimit);
       setItems(resp.items || []);

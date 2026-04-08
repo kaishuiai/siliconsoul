@@ -262,6 +262,7 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
         q = params.get("q")
         expert_name = params.get("expert_name")
         task_type = params.get("task_type")
+        conversation_id = params.get("conversation_id")
         replay_of = params.get("replay_of")
         only_replay_raw = params.get("only_replay", False)
         only_replay = False
@@ -289,6 +290,7 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
                 q=q,
                 expert_name=expert_name,
                 task_type=task_type,
+                conversation_id=conversation_id,
                 replay_of=replay_of,
                 only_replay=only_replay,
                 consensus_level=consensus_level,

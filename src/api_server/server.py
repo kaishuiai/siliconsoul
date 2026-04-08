@@ -1,5 +1,6 @@
 import os
 import uuid
+import json
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -105,6 +106,93 @@ async def _handle_upload(request: web.Request) -> web.Response:
     return web.json_response({"status": "success", "data": {"files": uploaded}}, status=200, headers=_cors_headers())
 
 
+def _extract_stream_text(payload: Dict[str, Any]) -> str:
+    fr = payload.get("final_result") if isinstance(payload, dict) else None
+    if not isinstance(fr, dict):
+        return json.dumps(payload, ensure_ascii=False)
+    for key in ["answer", "response", "reply", "message", "summary", "recommendation", "analysis"]:
+        v = fr.get(key)
+        if isinstance(v, str) and v.strip():
+            return v
+    if payload.get("expert_results") and isinstance(payload["expert_results"], list):
+        for x in payload["expert_results"]:
+            if isinstance(x, dict) and not x.get("error"):
+                rv = x.get("result")
+                if isinstance(rv, str) and rv.strip():
+                    return rv
+                if isinstance(rv, dict):
+                    return json.dumps(rv, ensure_ascii=False)
+    return json.dumps(fr, ensure_ascii=False)
+
+
+async def _handle_process_stream(request: web.Request) -> web.StreamResponse:
+    orchestrator: OrchestratorFacade = request.app["orchestrator"]
+    if request.method == "OPTIONS":
+        return web.Response(status=200, headers=_cors_headers())
+
+    auth_user_id = _resolve_auth_user_id(request, orchestrator)
+    auth_enabled = bool(orchestrator.config_manager.get("auth.enabled", False))
+    if auth_enabled and not auth_user_id:
+        return web.json_response(
+            {"status": "error", "code": 401, "message": "Unauthorized"},
+            status=401,
+            headers=_cors_headers(),
+        )
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+
+    text = str(body.get("text", "") or "").strip()
+    if not text:
+        return web.json_response(
+            {"status": "error", "code": 400, "message": "text required"},
+            status=400,
+            headers=_cors_headers(),
+        )
+
+    task_type = body.get("task_type")
+    context = body.get("context") if isinstance(body.get("context"), dict) else {}
+    user_id = auth_user_id or str(body.get("user_id", "api_user"))
+    extra_params = body.get("extra_params") if isinstance(body.get("extra_params"), dict) else None
+    expert_names = body.get("expert_names") if isinstance(body.get("expert_names"), list) else None
+
+    resp = web.StreamResponse(
+        status=200,
+        headers={
+            **_cors_headers(),
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )
+    await resp.prepare(request)
+    await resp.write(b"event: start\ndata: {}\n\n")
+    try:
+        result = await orchestrator.process(
+            text,
+            task_type,
+            context,
+            user_id=user_id,
+            extra_params=extra_params,
+            expert_names=expert_names,
+        )
+        output = _extract_stream_text(result if isinstance(result, dict) else {})
+        step = max(1, min(32, max(1, len(output) // 80)))
+        for i in range(0, len(output), step):
+            chunk = output[i : i + step]
+            await resp.write(f"event: delta\ndata: {json.dumps({'delta': chunk}, ensure_ascii=False)}\n\n".encode("utf-8"))
+        done_data = {"request_id": (result or {}).get("request_id"), "done": True}
+        await resp.write(f"event: done\ndata: {json.dumps(done_data, ensure_ascii=False)}\n\n".encode("utf-8"))
+    except Exception as e:
+        await resp.write(f"event: error\ndata: {json.dumps({'message': str(e)}, ensure_ascii=False)}\n\n".encode("utf-8"))
+    await resp.write_eof()
+    return resp
+
+
 async def _handle(request: web.Request) -> web.Response:
     gateway: APIGateway = request.app["gateway"]
     orchestrator: OrchestratorFacade = request.app["orchestrator"]
@@ -181,6 +269,7 @@ def create_app(config_path: Optional[str] = None) -> web.Application:
     app["orchestrator"] = orchestrator
 
     app.router.add_route("*", "/api/uploads", _handle_upload)
+    app.router.add_route("*", "/api/process/stream", _handle_process_stream)
 
     app.router.add_route("*", "/{tail:.*}", _handle)
     return app

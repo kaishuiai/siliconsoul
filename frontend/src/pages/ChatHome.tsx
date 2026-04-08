@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { chatAPI, systemAPI } from '../services/api';
+import { chatAPI, historyAPI, systemAPI } from '../services/api';
 
 type Msg = {
   id: string;
@@ -101,6 +101,7 @@ const ChatHome: React.FC<ChatHomeProps> = ({ user }) => {
     }
   });
   const [input, setInput] = useState('');
+  const [sessionSearch, setSessionSearch] = useState('');
   const [sending, setSending] = useState(false);
   const [experts, setExperts] = useState<Array<{ name: string; supported_tasks: string[] }>>([]);
   const [error, setError] = useState('');
@@ -131,8 +132,17 @@ const ChatHome: React.FC<ChatHomeProps> = ({ user }) => {
   }, []);
 
   const visibleSessions = useMemo(
-    () => sessions.filter((x) => !x.archived).sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)),
-    [sessions]
+    () =>
+      sessions
+        .filter((x) => !x.archived)
+        .filter((x) => {
+          if (!sessionSearch.trim()) return true;
+          const q = sessionSearch.trim().toLowerCase();
+          const last = x.messages[x.messages.length - 1]?.content || '';
+          return x.title.toLowerCase().includes(q) || last.toLowerCase().includes(q);
+        })
+        .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)),
+    [sessions, sessionSearch]
   );
   const activeSession = useMemo(() => sessions.find((x) => x.id === activeId) || visibleSessions[0] || null, [sessions, activeId, visibleSessions]);
   const messages = activeSession?.messages || [];
@@ -211,8 +221,27 @@ const ChatHome: React.FC<ChatHomeProps> = ({ user }) => {
         },
       };
       if (activeSession.expertName) body.expert_names = [activeSession.expertName];
-      const resp = await chatAPI.process(body, { signal: abortRef.current.signal });
-      await streamToMessage(assistantId, extractAssistantText(resp));
+      try {
+        await chatAPI.stream(
+          body,
+          ({ event, data }) => {
+            if (event === 'delta') {
+              const delta = typeof data?.delta === 'string' ? data.delta : '';
+              if (!delta) return;
+              setSessions((prev) =>
+                prev.map((s) => ({
+                  ...s,
+                  messages: s.messages.map((m) => (m.id === assistantId ? { ...m, content: (m.content || '') + delta } : m)),
+                }))
+              );
+            }
+          },
+          abortRef.current?.signal
+        );
+      } catch {
+        const resp = await chatAPI.process(body, { signal: abortRef.current.signal });
+        await streamToMessage(assistantId, extractAssistantText(resp));
+      }
     } catch (e: any) {
       const isCanceled = e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED' || /canceled/i.test(String(e?.message || ''));
       if (isCanceled) {
@@ -269,6 +298,50 @@ const ChatHome: React.FC<ChatHomeProps> = ({ user }) => {
     setError('');
   };
 
+  const syncFromCloud = async () => {
+    try {
+      const uid = user?.id || 'frontend_user';
+      const resp = await historyAPI.list(uid, '', 200, 0, '', '', '', false, '', false, '', '', '');
+      const rows = Array.isArray(resp?.items) ? resp.items : [];
+      const grouped = new Map<string, any[]>();
+      for (const r of rows) {
+        const cid = r.conversation_id || r.request_id;
+        if (!grouped.has(cid)) grouped.set(cid, []);
+        grouped.get(cid)?.push(r);
+      }
+      const cloudSessions: Session[] = [];
+      grouped.forEach((arr, cid) => {
+        const sorted = [...arr].sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+        const title = (sorted[0]?.text || '云端会话').slice(0, 20);
+        const msgs: Msg[] = sorted.map((it, idx) => ({
+          id: `${cid}_${idx}`,
+          role: 'user',
+          content: it.text || '',
+          ts: it.timestamp || new Date().toISOString(),
+        }));
+        cloudSessions.push({
+          id: String(cid),
+          title,
+          createdAt: sorted[0]?.timestamp || new Date().toISOString(),
+          updatedAt: sorted[sorted.length - 1]?.timestamp || new Date().toISOString(),
+          taskType: sorted[0]?.task_type || 'dialog',
+          expertName: '',
+          archived: false,
+          messages: msgs.length > 0 ? msgs : [defaultWelcome()],
+        });
+      });
+      if (cloudSessions.length > 0) {
+        setSessions((prev) => {
+          const map = new Map(prev.map((x) => [x.id, x]));
+          for (const s of cloudSessions) map.set(s.id, s);
+          return Array.from(map.values());
+        });
+      }
+    } catch (e: any) {
+      setError(e?.message || '云端同步失败');
+    }
+  };
+
   const renameCurrent = () => {
     if (!activeSession) return;
     const next = window.prompt('重命名会话', activeSession.title);
@@ -293,8 +366,17 @@ const ChatHome: React.FC<ChatHomeProps> = ({ user }) => {
       <div className="w-80 shrink-0 bg-white rounded-lg shadow-md p-4 h-full overflow-auto">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold">会话</h2>
-          <button onClick={createNew} className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">新建</button>
+          <div className="flex items-center gap-2">
+            <button onClick={syncFromCloud} className="px-2 py-1 border text-xs rounded text-gray-700 hover:bg-gray-50">云端同步</button>
+            <button onClick={createNew} className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">新建</button>
+          </div>
         </div>
+        <input
+          value={sessionSearch}
+          onChange={(e) => setSessionSearch(e.target.value)}
+          placeholder="搜索会话"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-3"
+        />
         <div className="space-y-2 max-h-64 overflow-auto mb-4">
           {visibleSessions.map((s) => (
             <button

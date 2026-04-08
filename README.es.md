@@ -17,7 +17,7 @@ Idiomas:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Estado de actualización (2026-04-08): PRD Fase 1 (lote 9) lanza una home de chat multi-sesión estilo ChatGPT con gestión de sesiones, detener generación, regenerar y pseudo-streaming.
+> Estado de actualización (2026-04-08): PRD Fase 1 (lote 10) añade API de chat streaming del lado servidor, sincronización cloud de sesiones y búsqueda de sesiones.
 
 ## Uso / Valor / Posicionamiento / Diferenciadores
 

@@ -164,6 +164,57 @@ export const chatAPI = {
     extra_params?: Record<string, any>;
     expert_names?: string[];
   }, config?: any) => post<any>('/process', body, config),
+  stream: async (
+    body: {
+      text: string;
+      task_type?: string;
+      context?: Record<string, any>;
+      user_id?: string;
+      extra_params?: Record<string, any>;
+      expert_names?: string[];
+    },
+    onEvent: (evt: { event: string; data: any }) => void,
+    signal?: AbortSignal
+  ) => {
+    const token = getApiToken();
+    const resp = await fetch(`${API_BASE_URL}/process/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+    if (!resp.ok || !resp.body) {
+      throw new Error(`流式请求失败: HTTP ${resp.status}`);
+    }
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let idx = buffer.indexOf('\n\n');
+      while (idx >= 0) {
+        const raw = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 2);
+        const lines = raw.split('\n');
+        const eventLine = lines.find((x) => x.startsWith('event:')) || 'event: message';
+        const dataLine = lines.find((x) => x.startsWith('data:')) || 'data: {}';
+        const event = eventLine.replace('event:', '').trim();
+        const dataText = dataLine.replace('data:', '').trim();
+        let data: any = dataText;
+        try {
+          data = JSON.parse(dataText);
+        } catch {
+        }
+        onEvent({ event, data });
+        idx = buffer.indexOf('\n\n');
+      }
+    }
+  },
 };
 
 export const historyAPI = {
@@ -173,6 +224,7 @@ export const historyAPI = {
     limit: number = 50,
     offset: number = 0,
     expertName: string = '',
+    conversationId: string = '',
     replayOf: string = '',
     onlyReplay: boolean = false,
     consensusLevel: string = '',
@@ -181,9 +233,9 @@ export const historyAPI = {
     until: string = '',
     taskType: string = ''
   ) =>
-    get<{ items: Array<{ request_id: string; user_id: string; text: string; timestamp: string }> }>(
+    get<{ items: Array<{ request_id: string; user_id: string; text: string; timestamp: string; conversation_id?: string; task_type?: string; replay_of?: string; consensus_level?: string; overall_confidence?: number }> }>(
       `/history/${encodeURIComponent(userId)}`,
-      { params: { q, limit, offset, expert_name: expertName || undefined, replay_of: replayOf || undefined, only_replay: onlyReplay || undefined, consensus_level: consensusLevel || undefined, only_errors: onlyErrors || undefined, since: since || undefined, until: until || undefined, task_type: taskType || undefined } }
+      { params: { q, limit, offset, expert_name: expertName || undefined, conversation_id: conversationId || undefined, replay_of: replayOf || undefined, only_replay: onlyReplay || undefined, consensus_level: consensusLevel || undefined, only_errors: onlyErrors || undefined, since: since || undefined, until: until || undefined, task_type: taskType || undefined } }
     ),
   detail: (userId: string, requestId: string) =>
     get<any>(`/history/${encodeURIComponent(userId)}/${encodeURIComponent(requestId)}`),

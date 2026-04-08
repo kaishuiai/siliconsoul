@@ -30,6 +30,20 @@ const TASK_OPTIONS = [
   { label: '知识问答', value: 'knowledge_qa' },
 ];
 
+const EXPERT_LABELS: Record<string, string> = {
+  CFOExpert: 'CFO（首席财务官顾问）',
+  DialogExpert: 'Dialog（通用对话专家）',
+  StockAnalysisExpert: 'Stock（股票分析专家）',
+  KnowledgeExpert: 'Knowledge（知识问答专家）',
+  DecisionExpert: 'Decision（决策专家）',
+  ReflectionExpert: 'Reflection（复盘专家）',
+  ExecutionExpert: 'Execution（执行专家）',
+  MLExpert: 'ML（机器学习专家）',
+  DemoExpert1: 'Demo 1（演示专家1）',
+  DemoExpert2: 'Demo 2（演示专家2）',
+  DemoExpert3: 'Demo 3（演示专家3）',
+};
+
 const STORE_KEY = 'chat_home_sessions_v1';
 const DELETED_KEY = 'chat_home_deleted_sessions_v1';
 
@@ -174,6 +188,8 @@ const ChatHome: React.FC<ChatHomeProps> = ({ user }) => {
     if (!activeSession.taskType) return experts;
     return experts.filter((x) => Array.isArray(x.supported_tasks) && x.supported_tasks.includes(activeSession.taskType));
   }, [experts, activeSession]);
+
+  const renderExpertLabel = (name: string) => EXPERT_LABELS[name] || `${name}（专家）`;
 
   const updateActiveSession = (updater: (s: Session) => Session) => {
     if (!activeSession) return;
@@ -481,11 +497,14 @@ const ChatHome: React.FC<ChatHomeProps> = ({ user }) => {
             onChange={(e) => updateActiveSession((s) => ({ ...s, expertName: e.target.value }))}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
           >
-            <option value="">自动选择（推荐）</option>
+            <option value="">自动选择（系统按当前场景匹配最合适专家）</option>
             {availableExperts.map((x) => (
-              <option key={x.name} value={x.name}>{x.name}</option>
+              <option key={x.name} value={x.name}>{renderExpertLabel(x.name)}</option>
             ))}
           </select>
+          <div className="text-xs text-gray-500 mt-2">
+            说明：选择“自动选择”时，系统会根据你选的场景自动挑选最匹配的专家。
+          </div>
         </div>
         <div className="text-xs text-gray-500">会话ID：{activeSession?.id || '-'}</div>
       </div>

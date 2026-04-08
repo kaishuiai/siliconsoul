@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> 更新状況（2026-04-08）：PRD Phase 1（第1バッチ）で replay チェーン追跡（`replay_of`）と History の replay フィルタを追加し、復盤ループを強化しました。
+> 更新状況（2026-04-08）：PRD Phase 1（第2バッチ）で Replay Chain ビューと比較レポート（Markdown）出力を追加し、復盤を追跡・共有しやすくしました。
 
 ## 用途 / 価値 / 位置づけ / 差別化
 

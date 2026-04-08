@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ（Mongolian, traditional script）：README.mn.md
 - العربية：README.ar.md
 
-> 更新狀態（2026-04-08）：PRD Phase 1（第一批）已支援 replay 鏈路追蹤（replay_of）與 History 重放篩選能力，持續強化復盤閉環。
+> 更新狀態（2026-04-08）：PRD Phase 1（第二批）已上線 Replay Chain 視圖與對比報告 MD 匯出，復盤鏈路可追蹤、可分享。
 
 ## 專案用途 / 價值 / 定位 / 差異點
 

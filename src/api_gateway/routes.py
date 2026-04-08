@@ -284,6 +284,54 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
             "result": aggregated_result,
         }
 
+    @gateway.route("/api/history/<user_id>/<request_id>/chain", methods=["GET"])
+    async def get_history_chain(
+        body: Optional[Dict[str, Any]] = None, user_id: str = "", request_id: str = ""
+    ) -> Dict[str, Any]:
+        sm = orchestrator.storage_manager
+        current = sm.get_request(request_id)
+        if current is None:
+            raise ValueError("request not found")
+        visited = set()
+        chain = []
+        root_id = request_id
+        cursor = request_id
+        while cursor and cursor not in visited:
+            visited.add(cursor)
+            rec = sm.get_request(cursor)
+            if rec is None:
+                break
+            row = rec.to_dict() if hasattr(rec, "to_dict") else rec
+            row["depth"] = len(chain)
+            chain.append(row)
+            parent = None
+            ctx = row.get("context")
+            if isinstance(ctx, dict):
+                meta = ctx.get("_meta")
+                if isinstance(meta, dict):
+                    parent = meta.get("replay_of")
+            if not parent:
+                root_id = cursor
+                break
+            cursor = parent
+            root_id = cursor
+        chain.reverse()
+        descendants = []
+        queue = [root_id]
+        seen = set(queue)
+        while queue:
+            parent = queue.pop(0)
+            children = sm.list_requests(user_id=user_id, replay_of=parent, limit=100, offset=0)
+            for c in children:
+                cid = c.get("request_id")
+                if not cid or cid in seen:
+                    continue
+                seen.add(cid)
+                descendants.append(c)
+                queue.append(cid)
+        descendants.sort(key=lambda x: str(x.get("timestamp", "")))
+        return {"request_id": request_id, "root_id": root_id, "lineage": chain, "descendants": descendants}
+
     @gateway.route("/api/history/<user_id>/<request_id>/replay", methods=["POST"])
     async def replay_history(
         body: Optional[Dict[str, Any]] = None, user_id: str = "", request_id: str = ""

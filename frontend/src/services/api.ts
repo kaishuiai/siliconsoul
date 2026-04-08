@@ -176,6 +176,8 @@ export const historyAPI = {
     ),
   detail: (userId: string, requestId: string) =>
     get<any>(`/history/${encodeURIComponent(userId)}/${encodeURIComponent(requestId)}`),
+  chain: (userId: string, requestId: string) =>
+    get<any>(`/history/${encodeURIComponent(userId)}/${encodeURIComponent(requestId)}/chain`),
   replay: (
     userId: string,
     requestId: string,

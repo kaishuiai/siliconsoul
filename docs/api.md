@@ -69,6 +69,15 @@ python -m src.api_server.server
 - expert_results：标准化专家结果（对齐 process 输出）
 - result：标准化聚合结果（对齐 process 输出）
 
+### GET /api/history/<user_id>/<request_id>/chain
+
+返回字段：
+
+- request_id：当前请求 ID
+- root_id：链路根请求 ID
+- lineage：从根到当前的线性链路
+- descendants：从根向下的后代请求（按时间排序）
+
 ### POST /api/history/<user_id>/<request_id>/replay
 
 返回字段（兼容模式）：

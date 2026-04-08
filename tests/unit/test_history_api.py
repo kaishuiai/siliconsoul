@@ -126,3 +126,28 @@ async def test_history_replay_endpoint(monkeypatch):
     assert resp["data"]["context"]["_meta"]["replay_of"] == request_id
     assert resp["data"]["expert_names"] == ["DemoExpert"]
     assert resp["data"]["results"]["request_id"] == "new_req"
+
+
+@pytest.mark.asyncio
+async def test_history_chain_endpoint():
+    gateway = APIGateway()
+    orchestrator = _DummyOrchestrator()
+    create_routes(gateway, orchestrator)
+
+    root_id = orchestrator.storage_manager.add_request("u1", "root", context={"_meta": {"task_type": "cfo_chat"}})
+    child_id = orchestrator.storage_manager.add_request(
+        "u1",
+        "child",
+        context={"_meta": {"task_type": "cfo_chat", "replay_of": root_id}},
+    )
+    grand_id = orchestrator.storage_manager.add_request(
+        "u1",
+        "grand",
+        context={"_meta": {"task_type": "cfo_chat", "replay_of": child_id}},
+    )
+    resp = await gateway.handle_request("GET", f"/api/history/u1/{grand_id}/chain", None)
+    assert resp["status"] == "success"
+    assert resp["data"]["root_id"] == root_id
+    lineage_ids = [x["request_id"] for x in resp["data"]["lineage"]]
+    assert lineage_ids == [root_id, child_id, grand_id]
+    assert any(x.get("request_id") == child_id for x in resp["data"]["descendants"])

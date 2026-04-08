@@ -17,7 +17,7 @@ README Languages:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ（Mongolian, traditional script）：[README.mn.md](README.mn.md)
 - العربية：[README.ar.md](README.ar.md)
 
-> 更新状态（2026-04-08）：PRD Phase 1（第一批）已支持 replay 链路追踪（replay_of）与 History 重放筛选能力，复盘闭环持续增强。
+> 更新状态（2026-04-08）：PRD Phase 1（第二批）已上线 Replay Chain 视图与对比报告 MD 导出，复盘链路可追踪、可分享。
 
 ## 项目用途 / 价值 / 定位 / 差异点
 

@@ -17,7 +17,7 @@ Ngôn ngữ:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Trạng thái cập nhật (2026-04-08): PRD Phase 1 (đợt 1) bổ sung truy vết chuỗi replay (`replay_of`) và bộ lọc replay trong History để tăng độ hoàn chỉnh vòng rà soát.
+> Trạng thái cập nhật (2026-04-08): PRD Phase 1 (đợt 2) đã có Replay Chain view và xuất compare-report dạng Markdown để truy vết và chia sẻ vòng rà soát.
 
 ## Mục đích / Giá trị / Định vị / Khác biệt
 

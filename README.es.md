@@ -17,7 +17,7 @@ Idiomas:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Estado de actualización (2026-04-08): PRD Fase 1 (lote 1) agrega trazabilidad de cadena replay (`replay_of`) y filtrado de replay en History para reforzar el bucle de revisión.
+> Estado de actualización (2026-04-08): PRD Fase 1 (lote 2) incorpora vista Replay Chain y exportación Markdown del compare-report para revisiones trazables y compartibles.
 
 ## Uso / Valor / Posicionamiento / Diferenciadores
 

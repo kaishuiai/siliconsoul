@@ -17,7 +17,7 @@ Languages:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Update status (2026-04-08): PRD Phase 1 (batch 1) adds replay-chain tracing (`replay_of`) and History replay filtering to strengthen the review loop.
+> Update status (2026-04-08): PRD Phase 1 (batch 2) ships Replay Chain view and Markdown compare-report export for traceable and shareable reviews.
 
 ## Purpose / Value / Positioning / Differentiators
 

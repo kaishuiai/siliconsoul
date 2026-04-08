@@ -18,6 +18,7 @@ const History: React.FC = () => {
   const [timeRange, setTimeRange] = useState<string>('');
   const [items, setItems] = useState<any[]>([]);
   const [selected, setSelected] = useState<any | null>(null);
+  const [chainData, setChainData] = useState<any | null>(null);
   const [expertOptions, setExpertOptions] = useState<string[]>([]);
   const [detailExpertName, setDetailExpertName] = useState<string>('');
   const [detailOnlyErrors, setDetailOnlyErrors] = useState<boolean>(false);
@@ -123,6 +124,43 @@ const History: React.FC = () => {
       ...rows,
       '',
     ].join('\n');
+  };
+
+  const buildCompareReportMarkdown = () => {
+    const oldId = compareOld?.request?.request_id || '-';
+    const newId = compareNew?.request?.request_id || '-';
+    const oldTs = compareOld?.request?.timestamp || '-';
+    const newTs = compareNew?.request?.timestamp || '-';
+    const lines = [
+      '# History Compare Report',
+      '',
+      `- old_request_id: ${oldId}`,
+      `- new_request_id: ${newId}`,
+      `- old_timestamp: ${oldTs}`,
+      `- new_timestamp: ${newTs}`,
+      `- consensus: ${compareSummary.oldConsensus} -> ${compareSummary.newConsensus}`,
+      `- confidence_delta_pct: ${compareSummary.confidenceDeltaPct == null ? '-' : compareSummary.confidenceDeltaPct}`,
+      `- final_result_changed: ${compareSummary.finalResultChanged ? 'true' : 'false'}`,
+      `- diff_count: ${compareSummary.changeCount}`,
+      '',
+      '## Diff Table',
+      '',
+      buildDiffMarkdown(visibleDiffs),
+      '',
+      '## Old Final Result',
+      '',
+      '```json',
+      JSON.stringify(compareOldAgg?.result?.final_result ?? null, null, 2),
+      '```',
+      '',
+      '## New Final Result',
+      '',
+      '```json',
+      JSON.stringify(compareNewAgg?.result?.final_result ?? null, null, 2),
+      '```',
+      '',
+    ];
+    return lines.join('\n');
   };
 
   const diffAny = (oldValue: any, newValue: any, path: string, out: DiffEntry[], depth: number, maxDiffs: number) => {
@@ -337,7 +375,9 @@ const History: React.FC = () => {
     setError(null);
     try {
       const resp = await historyAPI.detail(userId, requestId);
+      const chain = await historyAPI.chain(userId, requestId);
       setSelected(resp);
+      setChainData(chain);
       setDetailExpertName('');
       setDetailOnlyErrors(false);
       setCollapsed({});
@@ -363,7 +403,9 @@ const History: React.FC = () => {
       const resp = await historyAPI.replay(userId, selected.request.request_id, payload);
       if (resp?.request_id) {
         const newDetail = await historyAPI.detail(userId, resp.request_id);
+        const chain = await historyAPI.chain(userId, resp.request_id);
         setSelected(newDetail);
+        setChainData(chain);
         setCompareOld(oldSnapshot);
         setCompareNew(newDetail);
         setDetailExpertName('');
@@ -677,6 +719,60 @@ const History: React.FC = () => {
                 </div>
               </div>
 
+              {chainData && (
+                <div className="border rounded p-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="text-xs text-gray-500">Replay Chain</div>
+                    <button
+                      className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200"
+                      onClick={async () => {
+                        const payload = JSON.stringify(chainData, null, 2);
+                        const blob = new Blob([payload], { type: 'application/json;charset=utf-8' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `chain_${chainData.request_id || 'request'}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      }}
+                    >
+                      下载链路JSON
+                    </button>
+                  </div>
+                  <div className="text-xs text-gray-700 mb-2">root_id: {chainData.root_id}</div>
+                  <div className="space-y-2 mb-3">
+                    {(chainData.lineage || []).map((it: any) => (
+                      <button
+                        key={it.request_id}
+                        className="w-full text-left border rounded p-2 hover:bg-gray-50"
+                        onClick={() => loadDetail(it.request_id)}
+                      >
+                        <div className="text-xs text-gray-500">{it.timestamp}</div>
+                        <div className="text-sm font-semibold text-gray-800 truncate">{it.text}</div>
+                        <div className="text-xs text-blue-700 truncate">{it.request_id}</div>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-xs text-gray-500 mb-2">descendants: {(chainData.descendants || []).length}</div>
+                  <div className="max-h-56 overflow-auto space-y-2">
+                    {(chainData.descendants || []).slice(0, 30).map((it: any) => (
+                      <button
+                        key={it.request_id}
+                        className="w-full text-left border rounded p-2 hover:bg-gray-50"
+                        onClick={() => loadDetail(it.request_id)}
+                      >
+                        <div className="text-xs text-gray-500">{it.timestamp}</div>
+                        <div className="text-sm text-gray-800 truncate">{it.text}</div>
+                        <div className="text-xs text-blue-700 truncate">{it.request_id}</div>
+                        {it.replay_of && <div className="text-xs text-amber-600 truncate">replay_of: {it.replay_of}</div>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {compareOld && compareNew && (
                 <div className="border rounded p-4">
                   <div className="flex justify-between items-center mb-3">
@@ -763,6 +859,23 @@ const History: React.FC = () => {
                         }}
                       >
                         复制差异MD
+                      </button>
+                      <button
+                        className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200"
+                        onClick={() => {
+                          const report = buildCompareReportMarkdown();
+                          const blob = new Blob([report], { type: 'text/markdown;charset=utf-8' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `compare_${compareOld?.request?.request_id || 'old'}_${compareNew?.request?.request_id || 'new'}.md`;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                        }}
+                      >
+                        下载对比报告MD
                       </button>
                     </div>
                     {visibleDiffs.length === 0 ? (

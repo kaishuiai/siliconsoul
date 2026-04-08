@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Статус обновления (2026-04-08): PRD Phase 1 (пакет 1) добавляет трассировку цепочки replay (`replay_of`) и фильтрацию replay в History для усиления цикла ревью.
+> Статус обновления (2026-04-08): PRD Phase 1 (пакет 2) добавляет Replay Chain view и экспорт compare-report в Markdown для трассируемого и удобного обмена ревью.
 
 ## Назначение / Ценность / Позиционирование / Отличия
 

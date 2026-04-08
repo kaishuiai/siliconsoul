@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> 업데이트 상태(2026-04-08): PRD Phase 1(6차 배치)에서 리스크 설명(`risk_reasons`)과 권장 조치(`suggested_actions`)를 추가했습니다.
+> 업데이트 상태(2026-04-08): PRD Phase 1(7차 배치)에서 권장 조치 원클릭 실행(강화 리플레이/충돌 검토/체인 요약 복사)을 추가했습니다.
 
 ## 용도 / 가치 / 포지셔닝 / 차별점
 

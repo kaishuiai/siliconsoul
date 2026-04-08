@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ（Mongolian, traditional script）：README.mn.md
 - العربية：README.ar.md
 
-> 更新状态（2026-04-08）：PRD Phase 1（第六批）已上线风险解释（risk_reasons）与处置建议（suggested_actions），支持“先看为什么、再看怎么做”。
+> 更新状态（2026-04-08）：PRD Phase 1（第七批）已上线建议动作快捷执行（重放增强专家/冲突复核/链路摘要复制），复盘从“建议”升级为“可一键执行”。
 
 ## 项目用途 / 价值 / 定位 / 差异点
 

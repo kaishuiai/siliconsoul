@@ -17,7 +17,7 @@ Langues :
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script) : README.mn.md
 - العربية : README.ar.md
 
-> Statut de mise à jour (2026-04-08) : PRD Phase 1 (lot 6) ajoute des explications de risque (`risk_reasons`) et des actions suggérées (`suggested_actions`).
+> Statut de mise à jour (2026-04-08) : PRD Phase 1 (lot 7) ajoute l’exécution en un clic des actions suggérées (replay renforcé, revue des conflits, copie du résumé de chaîne).
 
 ## Usage / Valeur / Positionnement / Différences
 

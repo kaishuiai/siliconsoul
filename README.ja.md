@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> 更新状況（2026-04-08）：PRD Phase 1（第6バッチ）でリスク理由（`risk_reasons`）と推奨アクション（`suggested_actions`）を追加しました。
+> 更新状況（2026-04-08）：PRD Phase 1（第7バッチ）で推奨アクションのワンクリック実行（強化リプレイ/競合確認/チェーンサマリーコピー）を追加しました。
 
 ## 用途 / 価値 / 位置づけ / 差別化
 

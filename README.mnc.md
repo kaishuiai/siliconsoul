@@ -17,7 +17,7 @@
 - Mongolian (traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Update status (2026-04-08): PRD Phase 1 (batch 6) adds `risk_reasons` and `suggested_actions`.
+> Update status (2026-04-08): PRD Phase 1 (batch 7) adds one-click execution for suggested actions.
 
 ᠠᠮᠪᠠ ᠰᡝᡳᠴᡝᠨ:
 

@@ -423,6 +423,62 @@ const History: React.FC = () => {
     }
   };
 
+  const runRootQuickAction = async (root: any, action: string) => {
+    const latestId = root?.latest_request_id;
+    if (!latestId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      if (action === 'rerun_with_more_experts') {
+        const detail = await historyAPI.detail(userId, latestId);
+        setSelected(detail);
+        setChainData(await historyAPI.chain(userId, latestId));
+        const preferred = ['CFOExpert', 'StockAnalysisExpert', 'KnowledgeExpert', 'DialogExpert'];
+        const chosen = preferred.filter((x) => expertOptions.includes(x));
+        const payload: any = {};
+        if (chosen.length > 0) payload.expert_names = chosen;
+        const replay = await historyAPI.replay(userId, latestId, payload);
+        if (replay?.request_id) {
+          const next = await historyAPI.detail(userId, replay.request_id);
+          setCompareOld(detail);
+          setCompareNew(next);
+          setSelected(next);
+          setChainData(await historyAPI.chain(userId, replay.request_id));
+        }
+        return;
+      }
+      if (action === 'review_evidence_conflicts') {
+        setReplayOf(root.root_id || '');
+        setOnlyReplay(true);
+        await loadList(0, limit);
+        return;
+      }
+      if (action === 'summarize_chain_before_next_replay') {
+        const chain = await historyAPI.chain(userId, latestId);
+        const lineage = chain?.lineage || [];
+        const lines = [
+          '# Chain Summary',
+          '',
+          `- root_id: ${chain?.root_id || '-'}`,
+          `- request_id: ${latestId}`,
+          `- lineage_nodes: ${lineage.length}`,
+          `- descendants: ${(chain?.descendants || []).length}`,
+          '',
+          '## Lineage',
+          ...lineage.map((x: any) => `- ${x.request_id} | ${x.timestamp} | ${x.text}`),
+          '',
+        ];
+        await copyToClipboard(lines.join('\n'));
+        return;
+      }
+      await loadDetail(latestId);
+    } catch (e: any) {
+      setError(e?.message || '快捷动作执行失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const loadDetail = async (requestId: string) => {
     setLoading(true);
     setError(null);
@@ -663,6 +719,28 @@ const History: React.FC = () => {
                     <div className="text-xs text-indigo-700 mt-1 truncate">
                       actions: {Array.isArray(r.suggested_actions) && r.suggested_actions.length > 0 ? r.suggested_actions.join(', ') : '-'}
                     </div>
+                    {Array.isArray(r.suggested_actions) && r.suggested_actions.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {r.suggested_actions.map((a: string) => (
+                          <button
+                            key={a}
+                            className="px-2 py-1 text-xs rounded bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              runRootQuickAction(r, a);
+                            }}
+                          >
+                            {a === 'rerun_with_more_experts'
+                              ? '一键重放增强专家'
+                              : a === 'review_evidence_conflicts'
+                                ? '查看证据冲突'
+                                : a === 'summarize_chain_before_next_replay'
+                                  ? '复制链路摘要'
+                                  : a}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </button>
                 ))}
               </div>

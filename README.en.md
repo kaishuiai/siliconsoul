@@ -17,7 +17,7 @@ Languages:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Update status (2026-04-08): PRD Phase 1 (batch 6) adds risk explanations (`risk_reasons`) and suggested actions (`suggested_actions`) for action-oriented review.
+> Update status (2026-04-08): PRD Phase 1 (batch 7) adds one-click execution for suggested actions (enhanced replay, conflict review, chain-summary copy).
 
 ## Purpose / Value / Positioning / Differentiators
 

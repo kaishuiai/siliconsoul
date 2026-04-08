@@ -17,7 +17,7 @@ Ngôn ngữ:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Trạng thái cập nhật (2026-04-08): PRD Phase 1 (đợt 6) bổ sung giải thích rủi ro (`risk_reasons`) và gợi ý hành động (`suggested_actions`) cho rà soát theo hành động.
+> Trạng thái cập nhật (2026-04-08): PRD Phase 1 (đợt 7) bổ sung thực thi một chạm cho hành động gợi ý (replay tăng cường, rà soát xung đột, sao chép tóm tắt chain).
 
 ## Mục đích / Giá trị / Định vị / Khác biệt
 

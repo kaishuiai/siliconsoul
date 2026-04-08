@@ -90,6 +90,8 @@ async def test_me_and_history_endpoints():
     assert resp["data"]["total_roots"] >= 1
     assert isinstance(resp["data"]["items"], list)
     assert "risk_score" in resp["data"]["items"][0]
+    assert "risk_reasons" in resp["data"]["items"][0]
+    assert "suggested_actions" in resp["data"]["items"][0]
 
     resp = await gateway.handle_request("GET", "/api/history/roots/u1", {"top_n": 20, "sort_by": "risk"})
     assert resp["status"] == "success"

@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> 업데이트 상태(2026-04-08): PRD Phase 1(5차 배치)에서 체인 리스크 점수와 다축 정렬(latest/risk/depth/activity)을 추가해 복기 우선순위를 강화했습니다.
+> 업데이트 상태(2026-04-08): PRD Phase 1(6차 배치)에서 리스크 설명(`risk_reasons`)과 권장 조치(`suggested_actions`)를 추가했습니다.
 
 ## 용도 / 가치 / 포지셔닝 / 차별점
 

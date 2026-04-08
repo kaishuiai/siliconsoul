@@ -73,6 +73,8 @@ python -m src.api_server.server
 其中 items 每项包含：
 
 - risk_score：链路风险评分（用于工作台排序）
+- risk_reasons：风险评分解释标签列表
+- suggested_actions：快速处置动作建议列表
 
 ### GET /api/history/<user_id>/<request_id>
 

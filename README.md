@@ -17,7 +17,7 @@ README Languages:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ（Mongolian, traditional script）：[README.mn.md](README.mn.md)
 - العربية：[README.ar.md](README.ar.md)
 
-> 更新状态（2026-04-08）：PRD Phase 1（第五批）已上线链路风险评分与工作台多维排序（latest/risk/depth/activity），复盘优先级更清晰。
+> 更新状态（2026-04-08）：PRD Phase 1（第六批）已上线风险解释（risk_reasons）与处置建议（suggested_actions），支持“先看为什么、再看怎么做”。
 
 ## 项目用途 / 价值 / 定位 / 差异点
 

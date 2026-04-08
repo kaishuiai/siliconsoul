@@ -17,7 +17,7 @@ Lingue:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Stato aggiornamento (2026-04-08): PRD Phase 1 (batch 5) aggiunge risk scoring di catena e ordinamento multi-criterio (latest/risk/depth/activity) nel workspace.
+> Stato aggiornamento (2026-04-08): PRD Phase 1 (batch 6) aggiunge spiegazioni del rischio (`risk_reasons`) e azioni suggerite (`suggested_actions`).
 
 ## Scopo / Valore / Posizionamento / Differenziatori
 

@@ -17,7 +17,7 @@ Idiomas:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Estado de actualización (2026-04-08): PRD Fase 1 (lote 5) añade scoring de riesgo de cadena y ordenamiento multiclave (latest/risk/depth/activity) en el workspace.
+> Estado de actualización (2026-04-08): PRD Fase 1 (lote 6) añade explicaciones de riesgo (`risk_reasons`) y acciones sugeridas (`suggested_actions`).
 
 ## Uso / Valor / Posicionamiento / Diferenciadores
 

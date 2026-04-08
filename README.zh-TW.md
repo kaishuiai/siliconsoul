@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ（Mongolian, traditional script）：README.mn.md
 - العربية：README.ar.md
 
-> 更新狀態（2026-04-08）：PRD Phase 1（第五批）已上線鏈路風險評分與工作台多維排序（latest/risk/depth/activity），復盤優先級更清晰。
+> 更新狀態（2026-04-08）：PRD Phase 1（第六批）已上線風險解釋（risk_reasons）與處置建議（suggested_actions），支援「先看原因、再看行動」。
 
 ## 專案用途 / 價值 / 定位 / 差異點
 

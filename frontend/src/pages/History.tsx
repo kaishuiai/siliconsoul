@@ -657,6 +657,12 @@ const History: React.FC = () => {
                     <div className="text-xs text-rose-700 mt-1">
                       risk: {r.risk_score ?? '-'} · consensus: {r.latest_consensus_level || '-'}
                     </div>
+                    <div className="text-xs text-gray-600 mt-1 truncate">
+                      reasons: {Array.isArray(r.risk_reasons) && r.risk_reasons.length > 0 ? r.risk_reasons.join(', ') : '-'}
+                    </div>
+                    <div className="text-xs text-indigo-700 mt-1 truncate">
+                      actions: {Array.isArray(r.suggested_actions) && r.suggested_actions.length > 0 ? r.suggested_actions.join(', ') : '-'}
+                    </div>
                   </button>
                 ))}
               </div>

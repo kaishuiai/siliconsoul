@@ -17,7 +17,7 @@ Languages:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Update status (2026-04-08): PRD Phase 1 (batch 5) adds chain risk scoring and multi-sort workspace views (latest/risk/depth/activity) for clearer review prioritization.
+> Update status (2026-04-08): PRD Phase 1 (batch 6) adds risk explanations (`risk_reasons`) and suggested actions (`suggested_actions`) for action-oriented review.
 
 ## Purpose / Value / Positioning / Differentiators
 

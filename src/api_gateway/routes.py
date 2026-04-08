@@ -355,19 +355,43 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
 
         def _risk_score(x: Dict[str, Any]) -> float:
             score = 0.0
+            reasons: List[str] = []
             latest_consensus = str(x.get("latest_consensus_level") or "none")
             if latest_consensus == "none":
                 score += 60
+                reasons.append("latest_consensus_none")
             elif latest_consensus == "low":
                 score += 40
+                reasons.append("latest_consensus_low")
             elif latest_consensus == "medium":
                 score += 20
-            score += min(float(x.get("replay_nodes", 0)) * 5.0, 20.0)
-            score += min(float(x.get("max_depth", 0)) * 3.0, 18.0)
+                reasons.append("latest_consensus_medium")
+            replay_part = min(float(x.get("replay_nodes", 0)) * 5.0, 20.0)
+            if replay_part > 0:
+                reasons.append("many_replays")
+            score += replay_part
+            depth_part = min(float(x.get("max_depth", 0)) * 3.0, 18.0)
+            if depth_part >= 9:
+                reasons.append("deep_chain")
+            score += depth_part
             max_c = x.get("max_confidence")
             min_c = x.get("min_confidence")
             if isinstance(max_c, (int, float)) and isinstance(min_c, (int, float)):
-                score += min(abs(float(max_c) - float(min_c)) * 100.0 * 0.5, 25.0)
+                vol = min(abs(float(max_c) - float(min_c)) * 100.0 * 0.5, 25.0)
+                if vol >= 10:
+                    reasons.append("confidence_volatility")
+                score += vol
+            x["risk_reasons"] = reasons
+            actions: List[str] = []
+            if "latest_consensus_none" in reasons or "latest_consensus_low" in reasons:
+                actions.append("rerun_with_more_experts")
+            if "confidence_volatility" in reasons:
+                actions.append("review_evidence_conflicts")
+            if "many_replays" in reasons or "deep_chain" in reasons:
+                actions.append("summarize_chain_before_next_replay")
+            if not actions:
+                actions.append("monitor")
+            x["suggested_actions"] = actions
             return round(score, 2)
 
         for row in out:

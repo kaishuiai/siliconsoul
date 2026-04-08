@@ -88,6 +88,14 @@ const Navigation: React.FC = () => {
           <li className="text-gray-500 hover:text-blue-600 cursor-pointer">601888.SH</li>
         </ul>
       </div>
+      <div className="mt-8 pt-4 border-t border-gray-200">
+        <Link
+          to="/settings"
+          className={`block px-4 py-2 rounded-lg transition ${isActive('/settings')}`}
+        >
+          ⚙️ 设置
+        </Link>
+      </div>
     </nav>
   );
 };

@@ -4,6 +4,7 @@ API Routes
 Defines all API routes for SiliconSoul.
 """
 
+import os
 from typing import Dict, Any, Optional, List
 import re
 from src.api_gateway.gateway import APIGateway
@@ -248,6 +249,61 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
         orchestrator.config_manager.set(key, value)
 
         return {"message": f"Config {key} updated"}
+
+    @gateway.route("/api/llm/settings", methods=["GET"])
+    async def get_llm_settings(body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        provider = str(os.getenv("LLM_PROVIDER", "auto") or "auto")
+        api_base = str(os.getenv("LLM_API_BASE", "") or "")
+        model = str(os.getenv("LLM_MODEL", "") or "")
+        openai_key = str(os.getenv("OPENAI_API_KEY", "") or "")
+        deepseek_key = str(os.getenv("DEEPSEEK_API_KEY", "") or "")
+        active_key = openai_key or deepseek_key
+        key_tail = active_key[-4:] if active_key else ""
+        return {
+            "provider": provider,
+            "api_base": api_base,
+            "model": model,
+            "has_api_key": bool(active_key),
+            "api_key_tail": key_tail,
+        }
+
+    @gateway.route("/api/llm/settings", methods=["POST"])
+    async def set_llm_settings(body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        data = body or {}
+        provider = str(data.get("provider", "openai_compatible") or "openai_compatible").strip().lower()
+        api_base = str(data.get("api_base", "") or "").strip()
+        model = str(data.get("model", "") or "").strip()
+        api_key = str(data.get("api_key", "") or "").strip()
+
+        if provider in {"zenmux", "custom"}:
+            provider = "openai_compatible"
+        if provider not in {"openai_compatible", "deepseek", "auto"}:
+            raise ValueError("provider must be openai_compatible/deepseek/auto/zenmux/custom")
+
+        os.environ["LLM_PROVIDER"] = provider
+        if api_base:
+            os.environ["LLM_API_BASE"] = api_base
+        if model:
+            os.environ["LLM_MODEL"] = model
+
+        if provider == "deepseek":
+            if api_key:
+                os.environ["DEEPSEEK_API_KEY"] = api_key
+            os.environ.pop("OPENAI_API_KEY", None)
+        else:
+            if api_key:
+                os.environ["OPENAI_API_KEY"] = api_key
+            if provider == "openai_compatible":
+                os.environ.pop("DEEPSEEK_API_KEY", None)
+
+        active_key = str(os.getenv("OPENAI_API_KEY", "") or "") or str(os.getenv("DEEPSEEK_API_KEY", "") or "")
+        return {
+            "message": "LLM settings updated (runtime only)",
+            "provider": os.getenv("LLM_PROVIDER", "auto"),
+            "api_base": os.getenv("LLM_API_BASE", ""),
+            "model": os.getenv("LLM_MODEL", ""),
+            "has_api_key": bool(active_key),
+        }
 
     # Logs
     @gateway.route("/api/logs", methods=["GET"])

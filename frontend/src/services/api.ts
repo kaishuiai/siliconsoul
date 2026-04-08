@@ -153,6 +153,10 @@ export const systemAPI = {
   stats: () => get<any>('/monitor/stats'),
   getConfig: () => get<any>('/config'),
   setConfig: (key: string, value: any) => post<any>('/config', { key, value }),
+  getLLMSettings: () =>
+    get<{ provider: string; api_base: string; model: string; has_api_key: boolean; api_key_tail?: string }>('/llm/settings'),
+  setLLMSettings: (payload: { provider: string; api_key?: string; api_base?: string; model?: string }) =>
+    post<any>('/llm/settings', payload),
 };
 
 export const chatAPI = {

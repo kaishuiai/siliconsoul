@@ -9,6 +9,7 @@ import StockAnalysis from './pages/StockAnalysis';
 import Portfolio from './pages/Portfolio';
 import KnowledgeBase from './pages/KnowledgeBase';
 import History from './pages/History';
+import Settings from './pages/Settings';
 import Navigation from './components/Navigation';
 import Header from './components/Header';
 import { systemAPI } from './services/api';
@@ -74,6 +75,7 @@ function App() {
               <Route path="/portfolio" element={<Portfolio user={user} />} />
               <Route path="/knowledge" element={<KnowledgeBase />} />
               <Route path="/history" element={<History />} />
+              <Route path="/settings" element={<Settings />} />
             </Routes>
           </main>
         </div>

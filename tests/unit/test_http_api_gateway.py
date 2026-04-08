@@ -1,4 +1,5 @@
 import pytest
+import os
 
 from src.api_gateway.gateway import APIGateway
 from src.api_gateway.routes import create_routes
@@ -91,3 +92,30 @@ async def test_gateway_health_and_monitor_contract():
     m_metrics = await gateway.handle_request("GET", "/api/monitor/metrics", None)
     assert m_metrics["status"] == "success"
     assert isinstance(m_metrics["data"], dict)
+
+
+@pytest.mark.asyncio
+async def test_gateway_llm_settings_runtime_update():
+    gateway = APIGateway()
+    orchestrator = _DummyOrchestrator()
+    create_routes(gateway, orchestrator)
+
+    os.environ.pop("LLM_PROVIDER", None)
+    os.environ.pop("LLM_API_BASE", None)
+    os.environ.pop("LLM_MODEL", None)
+    os.environ.pop("OPENAI_API_KEY", None)
+
+    resp = await gateway.handle_request(
+        "POST",
+        "/api/llm/settings",
+        {"provider": "zenmux", "api_key": "k-test", "api_base": "https://example.com/v1", "model": "m1"},
+    )
+    assert resp["status"] == "success"
+    assert resp["data"]["provider"] == "openai_compatible"
+    assert resp["data"]["has_api_key"] is True
+
+    resp = await gateway.handle_request("GET", "/api/llm/settings", None)
+    assert resp["status"] == "success"
+    assert resp["data"]["provider"] == "openai_compatible"
+    assert resp["data"]["api_base"] == "https://example.com/v1"
+    assert resp["data"]["model"] == "m1"

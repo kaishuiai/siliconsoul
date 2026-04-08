@@ -61,6 +61,11 @@ class LLMClient:
 
     def _resolve_provider(self) -> str:
         provider = (self._config.provider or "auto").strip().lower()
+        env_provider = os.getenv("LLM_PROVIDER", "").strip().lower()
+        if env_provider == "deepseek" and bool(os.getenv("DEEPSEEK_API_KEY")):
+            return "deepseek"
+        if env_provider == "openai_compatible" and bool(os.getenv("OPENAI_API_KEY")):
+            return "openai_compatible"
         if provider in ("deepseek", "openai_compatible"):
             return provider
         if os.getenv("DEEPSEEK_API_KEY", "").strip():

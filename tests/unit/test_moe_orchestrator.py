@@ -8,12 +8,14 @@ Tests:
 - Error handling
 """
 
+import asyncio
 import pytest
 
 from src.core.moe_orchestrator import MOEOrchestrator
 from src.experts.demo_expert_1 import DemoExpert1
 from src.experts.demo_expert_2 import DemoExpert2
 from src.experts.demo_expert_3 import DemoExpert3
+from src.experts.expert_base import Expert
 from src.models.request_response import ExpertRequest, AggregatedResult
 
 
@@ -191,6 +193,24 @@ class TestParallelExecution:
         
         # Should complete successfully within timeout
         assert len(results) > 0
+
+    @pytest.mark.asyncio
+    async def test_execute_overall_timeout_returns_timeout_errors(self, sample_request):
+        class _SlowExpert(Expert):
+            def __init__(self, name: str):
+                super().__init__(name=name, version="1.0")
+
+            async def analyze(self, request):
+                await asyncio.sleep(0.2)
+                return {"ok": True}, 0.5, {}
+
+        moe = MOEOrchestrator(default_timeout_sec=1.0)
+        moe.register_expert(_SlowExpert("SlowA"))
+        moe.register_expert(_SlowExpert("SlowB"))
+        results = await moe.execute_experts_parallel(["SlowA", "SlowB"], sample_request, timeout_sec=0.01)
+        assert len(results) == 2
+        assert all(r.error for r in results)
+        assert any("Overall timeout" in (r.error or "") for r in results)
 
 
 class TestProcessRequest:

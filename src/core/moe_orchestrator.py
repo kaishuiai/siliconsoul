@@ -252,8 +252,8 @@ class MOEOrchestrator:
         )
         
         # Create execution tasks
-        tasks = []
-        expert_mapping = {}
+        tasks: List[asyncio.Task] = []
+        task_to_expert: Dict[asyncio.Task, str] = {}
         
         for i, name in enumerate(expert_names):
             expert = self.get_expert(name)
@@ -266,9 +266,9 @@ class MOEOrchestrator:
                 continue
             
             # Create task for this expert
-            task = expert.execute(request, timeout_sec=self.default_timeout_sec)
+            task = asyncio.create_task(expert.execute(request, timeout_sec=self.default_timeout_sec))
             tasks.append(task)
-            expert_mapping[i] = name
+            task_to_expert[task] = name
         
         if not tasks:
             self.logger.error("No valid experts to execute")
@@ -276,24 +276,50 @@ class MOEOrchestrator:
         
         # Execute all tasks in parallel with timeout
         try:
-            # Run all tasks concurrently
-            results = await asyncio.wait_for(
-                asyncio.gather(*tasks, return_exceptions=True),
-                timeout=timeout_sec
-            )
-            
-            # Filter and validate results
-            valid_results = []
-            for i, result in enumerate(results):
+            done, pending = await asyncio.wait(tasks, timeout=timeout_sec)
+            valid_results: List[ExpertResult] = []
+            for task in done:
+                try:
+                    result = task.result()
+                except Exception as e:
+                    expert_name = task_to_expert.get(task, "Unknown")
+                    self.logger.error(f"Task ({expert_name}) raised exception: {str(e)}")
+                    ts = datetime.now().timestamp()
+                    valid_results.append(
+                        ExpertResult(
+                            expert_name=expert_name,
+                            result={},
+                            confidence=0.0,
+                            metadata={"error_type": type(e).__name__},
+                            timestamp_start=ts,
+                            timestamp_end=ts,
+                            error=f"{type(e).__name__}: {str(e)}",
+                        )
+                    )
+                    continue
                 if isinstance(result, ExpertResult):
                     valid_results.append(result)
-                elif isinstance(result, Exception):
-                    # Task raised exception
-                    expert_name = expert_mapping.get(i, "Unknown")
-                    self.logger.error(f"Task {i} ({expert_name}) raised exception")
                 else:
-                    # Unexpected result type
-                    self.logger.warning(f"Task {i} returned invalid type: {type(result)}")
+                    expert_name = task_to_expert.get(task, "Unknown")
+                    self.logger.warning(f"Task ({expert_name}) returned invalid type: {type(result)}")
+            if pending:
+                timeout_msg = f"Overall timeout after {timeout_sec}s"
+                self.logger.error(f"Parallel execution timed out: {len(pending)} experts unfinished")
+                ts = datetime.now().timestamp()
+                for task in pending:
+                    expert_name = task_to_expert.get(task, "Unknown")
+                    task.cancel()
+                    valid_results.append(
+                        ExpertResult(
+                            expert_name=expert_name,
+                            result={},
+                            confidence=0.0,
+                            metadata={"error_type": "timeout", "overall_timeout_sec": timeout_sec},
+                            timestamp_start=ts,
+                            timestamp_end=ts,
+                            error=timeout_msg,
+                        )
+                    )
             
             self.logger.info(
                 f"Parallel execution completed: {len(valid_results)}/{len(tasks)} "
@@ -301,13 +327,6 @@ class MOEOrchestrator:
             )
             
             return valid_results
-        
-        except asyncio.TimeoutError:
-            self.logger.error(
-                f"Parallel execution timed out after {timeout_sec}s "
-                f"(only {len(tasks)} experts started)"
-            )
-            return []
         
         except Exception as e:
             self.logger.error(

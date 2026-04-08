@@ -83,6 +83,35 @@ async def test_facade_batch_process_has_individual_request_ids(monkeypatch):
 
     monkeypatch.setattr(facade.moe, "process_request", fake_process_request)
 
-    results = await facade.batch_process([{"text": "a"}, {"text": "b"}], user_id="u1")
-    assert len(results) == 2
-    assert results[0]["request_id"] != results[1]["request_id"]
+    out = await facade.batch_process([{"text": "a"}, {"text": "b"}], user_id="u1")
+    assert out["summary"]["total"] == 2
+    assert out["summary"]["success"] == 2
+    assert out["summary"]["failed"] == 0
+    assert len(out["items"]) == 2
+    assert out["items"][0]["data"]["request_id"] != out["items"][1]["data"]["request_id"]
+
+
+@pytest.mark.asyncio
+async def test_facade_batch_process_partial_failure_isolated(monkeypatch):
+    facade = OrchestratorFacade()
+    facade.storage_manager = StorageManager(storage_type="memory")
+
+    async def fake_process_request(request, expert_names=None, timeout_sec=None):
+        if request.text == "bad":
+            raise ValueError("bad request")
+        return AggregatedResult(
+            final_result={"ok": True},
+            expert_results=[],
+            overall_confidence=0.0,
+            num_experts=0,
+            consensus_level="none",
+            duration_ms=0.0,
+        )
+
+    monkeypatch.setattr(facade.moe, "process_request", fake_process_request)
+
+    out = await facade.batch_process([{"text": "a"}, {"text": "bad"}, {"text": "c"}], user_id="u1")
+    assert out["summary"]["total"] == 3
+    assert out["summary"]["success"] == 2
+    assert out["summary"]["failed"] == 1
+    assert out["items"][1]["success"] is False

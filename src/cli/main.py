@@ -12,20 +12,7 @@ import asyncio
 from typing import Any, Dict, Optional
 from pathlib import Path
 
-from src.core.moe_orchestrator import MOEOrchestrator
-from src.experts.expert_base import Expert
-from src.experts.demo_expert_1 import DemoExpert1
-from src.experts.demo_expert_2 import DemoExpert2
-from src.experts.demo_expert_3 import DemoExpert3
-from src.experts.stock_analysis_expert import StockAnalysisExpert
-from src.experts.cfo_expert import CFOExpert
-from src.experts.knowledge_expert import KnowledgeExpert
-from src.experts.dialog_expert import DialogExpert
-from src.experts.decision_expert import DecisionExpert
-from src.experts.reflection_expert import ReflectionExpert
-from src.experts.execution_expert import ExecutionExpert
-from src.experts.cfo_expert import CFOExpert
-from src.models.request_response import ExpertRequest
+from src.api_server.facade import OrchestratorFacade
 
 
 __version__ = "1.0.0"
@@ -36,28 +23,10 @@ class SiliconSoulCLI:
     
     def __init__(self):
         """Initialize CLI"""
-        self.moe = MOEOrchestrator(default_timeout_sec=5.0)
-        self._register_all_experts()
+        self.orchestrator = OrchestratorFacade()
+        self.moe = self.orchestrator.moe
         self.output_format = "json"
         self.verbose = False
-    
-    def _register_all_experts(self):
-        """Register all experts with MOE"""
-        experts = [
-            DemoExpert1(),
-            DemoExpert2(),
-            DemoExpert3(),
-            StockAnalysisExpert(),
-            KnowledgeExpert(),
-            CFOExpert(),
-            DialogExpert(),
-            DecisionExpert(),
-            ReflectionExpert(),
-            ExecutionExpert(),
-        ]
-
-        for expert in experts:
-            self.moe.register_expert(expert)
     
     def output(self, data: Any, exit_code: int = 0) -> None:
         """
@@ -181,27 +150,29 @@ class SiliconSoulCLI:
         except json.JSONDecodeError as e:
             self.error(f"Invalid JSON: {str(e)}")
         
-        # Create request
-        request = ExpertRequest(
-            text=request_data.get("text", ""),
-            user_id=request_data.get("user_id", "cli_user"),
-            context=request_data.get("context", {})
-        )
-        
-        # Process through MOE
+        text = str(request_data.get("text", ""))
+        if not text:
+            self.error("request.text required")
+        task_type = request_data.get("task_type")
+        context = request_data.get("context", {})
+        extra_params = request_data.get("extra_params")
+        expert_names = request_data.get("expert_names")
+        if expert_names is not None and not isinstance(expert_names, list):
+            self.error("expert_names must be list")
         async def process():
-            return await self.moe.process_request(request)
+            return await self.orchestrator.process(
+                text,
+                task_type,
+                context if isinstance(context, dict) else {},
+                user_id=str(request_data.get("user_id", "cli_user")),
+                extra_params=extra_params if isinstance(extra_params, dict) else None,
+                expert_names=expert_names,
+            )
         
         try:
             result = asyncio.run(process())
             
-            output_data = {
-                "status": "processed",
-                "results": result.results if hasattr(result, 'results') else [],
-                "aggregated": result.aggregated if hasattr(result, 'aggregated') else {}
-            }
-            
-            self.success(output_data)
+            self.success(result)
         except Exception as e:
             self.error(f"Process failed: {str(e)}")
     
@@ -222,32 +193,18 @@ class SiliconSoulCLI:
         if not isinstance(requests, list):
             self.error("File must contain JSON array")
         
-        # Process all requests
+        normalized_requests = []
+        for req in requests:
+            if not isinstance(req, dict):
+                normalized_requests.append({"text": str(req), "user_id": "cli_user"})
+                continue
+            normalized_requests.append(req)
         async def process_all():
-            results = []
-            for req_data in requests:
-                request = ExpertRequest(
-                    text=req_data.get("text", ""),
-                    user_id=req_data.get("user_id", "cli_user"),
-                    context=req_data.get("context", {})
-                )
-                result = await self.moe.process_request(request)
-                results.append({
-                    "request": req_data,
-                    "result": result.aggregated if hasattr(result, 'aggregated') else {}
-                })
-            return results
+            return await self.orchestrator.batch_process(normalized_requests, user_id=args.user_id or "cli_user")
         
         try:
-            results = asyncio.run(process_all())
-            
-            output_data = {
-                "total": len(results),
-                "processed": len(results),
-                "results": results
-            }
-            
-            self.success(output_data, f"Processed {len(results)} requests")
+            out = asyncio.run(process_all())
+            self.success(out, f"Processed {out.get('summary', {}).get('total', 0)} requests")
         except Exception as e:
             self.error(f"Batch processing failed: {str(e)}")
     

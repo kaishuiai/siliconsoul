@@ -96,19 +96,28 @@ python -m src.api_server.server
 - descendants：从根向下的后代请求（按时间排序）
 - stats：链路统计（节点数、深度、一致性分布、置信度极值节点）
 
+### POST /api/process
+
+返回字段（统一模型）：
+
+- request_id：请求 ID（可用于 history/replay）
+- final_result：聚合结论对象
+- expert_results：专家结果数组（含 timestamp_start/timestamp_end/error）
+- overall_confidence / consensus_level / duration_ms / num_experts
+
 ### POST /api/history/<user_id>/<request_id>/replay
 
 返回字段（兼容模式）：
 
-- request_id / result / expert_results（标准化字段）
-- results（原始聚合对象，兼容旧调用）
+- request_id / final_result / expert_results（统一字段）
 
 ### POST /api/batch
 
 返回字段（兼容模式）：
 
-- results：原始批处理结果（兼容旧调用）
-- items：标准化批处理结果数组（对齐 process 输出）
+- summary：{total, success, failed, avg_duration_ms}
+- items：逐条处理结果（成功项含 data，失败项含 error，彼此隔离）
+- results：兼容字段（success/error 扁平列表）
 
 ### 响应 envelope（兼容模式）
 

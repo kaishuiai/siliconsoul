@@ -176,16 +176,57 @@ class OrchestratorFacade:
         requests: List[Dict[str, Any]],
         *,
         user_id: str = "api_user",
-    ) -> List[Dict[str, Any]]:
-        results: List[Dict[str, Any]] = []
-        for req in requests:
-            results.append(
-                await self.process(
+    ) -> Dict[str, Any]:
+        items: List[Dict[str, Any]] = []
+        success = 0
+        failed = 0
+        duration_total_ms = 0.0
+        for idx, req in enumerate(requests):
+            started = time.time()
+            try:
+                payload = await self.process(
                     req.get("text", ""),
                     req.get("task_type"),
                     req.get("context", {}),
                     user_id=req.get("user_id", user_id),
                     extra_params=req.get("extra_params"),
+                    expert_names=req.get("expert_names"),
                 )
-            )
-        return results
+                took_ms = (time.time() - started) * 1000
+                duration_total_ms += took_ms
+                success += 1
+                items.append(
+                    {
+                        "index": idx,
+                        "status": "success",
+                        "success": True,
+                        "request": req,
+                        "duration_ms": round(took_ms, 2),
+                        "data": payload,
+                    }
+                )
+            except Exception as e:
+                took_ms = (time.time() - started) * 1000
+                duration_total_ms += took_ms
+                failed += 1
+                items.append(
+                    {
+                        "index": idx,
+                        "status": "error",
+                        "success": False,
+                        "request": req,
+                        "duration_ms": round(took_ms, 2),
+                        "error": {"message": str(e)},
+                    }
+                )
+        total = len(requests)
+        avg_ms = duration_total_ms / total if total > 0 else 0.0
+        return {
+            "items": items,
+            "summary": {
+                "total": total,
+                "success": success,
+                "failed": failed,
+                "avg_duration_ms": round(avg_ms, 2),
+            },
+        }

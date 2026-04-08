@@ -1,21 +1,21 @@
 # SiliconSoul
 
-README Languages:
+语言 / Languages：
 
 - 简体中文（默认）：README.md
-- 简体中文：[README.zh-CN.md](README.zh-CN.md)
-- 繁體中文：[README.zh-TW.md](README.zh-TW.md)
-- English：[README.en.md](README.en.md)
-- Русский：[README.ru.md](README.ru.md)
-- Tiếng Việt：[README.vi.md](README.vi.md)
-- Français：[README.fr.md](README.fr.md)
-- Español：[README.es.md](README.es.md)
-- Italiano：[README.it.md](README.it.md)
-- 日本語：[README.ja.md](README.ja.md)
-- 한국어：[README.ko.md](README.ko.md)
-- ᠮᠠᠨᠵᡠ ᡤᡳᠰᡠᠨ（Manchu）：[README.mnc.md](README.mnc.md)
-- ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ（Mongolian, traditional script）：[README.mn.md](README.mn.md)
-- العربية：[README.ar.md](README.ar.md)
+- 简体中文：README.zh-CN.md
+- 繁體中文：README.zh-TW.md
+- English：README.en.md
+- Русский：README.ru.md
+- Tiếng Việt：README.vi.md
+- Français：README.fr.md
+- Español：README.es.md
+- Italiano：README.it.md
+- 日本語：README.ja.md
+- 한국어：README.ko.md
+- ᠮᠠᠨᠵᡠ ᡤᡳᠰᡠᠨ（Manchu）：README.mnc.md
+- ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ（Mongolian, traditional script）：README.mn.md
+- العربية：README.ar.md
 
 ## 项目用途 / 价值 / 定位 / 差异点
 

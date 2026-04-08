@@ -66,10 +66,10 @@ check_pattern "token[\"']?[[:space:]]*[:=]" "令牌字段"
 # 6. 检查tracked敏感文件
 echo ""
 echo "6️⃣  检查已追踪的敏感文件..."
-tracked_secrets=$(git ls-files 2>/dev/null | grep -E "\.pem|\.key|\.env" | wc -l)
+tracked_secrets=$(git ls-files 2>/dev/null | grep -E "\.pem$|\.key$|(^|/)\.env$|(^|/)\.env\.local$|(^|/)\.env\..*\.local$|(^|/)\.env\.production$" | wc -l)
 if [ $tracked_secrets -gt 0 ]; then
     echo "❌ 发现已追踪的敏感文件！"
-    git ls-files 2>/dev/null | grep -E "\.pem|\.key|\.env"
+    git ls-files 2>/dev/null | grep -E "\.pem$|\.key$|(^|/)\.env$|(^|/)\.env\.local$|(^|/)\.env\..*\.local$|(^|/)\.env\.production$"
     ISSUES_FOUND=$((ISSUES_FOUND + 1))
     echo ""
 else

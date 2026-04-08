@@ -20,6 +20,7 @@ const History: React.FC = () => {
   const [selected, setSelected] = useState<any | null>(null);
   const [chainData, setChainData] = useState<any | null>(null);
   const [rootBoard, setRootBoard] = useState<{ items: any[]; total_roots: number } | null>(null);
+  const [actionReceipts, setActionReceipts] = useState<any[]>([]);
   const [rootSortBy, setRootSortBy] = useState<'latest' | 'risk' | 'depth' | 'activity'>('latest');
   const [expertOptions, setExpertOptions] = useState<string[]>([]);
   const [detailExpertName, setDetailExpertName] = useState<string>('');
@@ -426,6 +427,17 @@ const History: React.FC = () => {
   const runRootQuickAction = async (root: any, action: string) => {
     const latestId = root?.latest_request_id;
     if (!latestId) return;
+    const startedAt = Date.now();
+    const receipt: any = {
+      ts: new Date().toISOString(),
+      action,
+      root_id: root?.root_id || '',
+      latest_request_id: latestId,
+      status: 'success',
+      message: 'ok',
+      new_request_id: null,
+      duration_ms: 0,
+    };
     setLoading(true);
     setError(null);
     try {
@@ -444,16 +456,17 @@ const History: React.FC = () => {
           setCompareNew(next);
           setSelected(next);
           setChainData(await historyAPI.chain(userId, replay.request_id));
+          receipt.new_request_id = replay.request_id;
+          receipt.message = '重放成功';
+        } else {
+          receipt.message = '重放完成（未返回request_id）';
         }
-        return;
-      }
-      if (action === 'review_evidence_conflicts') {
+      } else if (action === 'review_evidence_conflicts') {
         setReplayOf(root.root_id || '');
         setOnlyReplay(true);
         await loadList(0, limit);
-        return;
-      }
-      if (action === 'summarize_chain_before_next_replay') {
+        receipt.message = '已切换到证据冲突筛选';
+      } else if (action === 'summarize_chain_before_next_replay') {
         const chain = await historyAPI.chain(userId, latestId);
         const lineage = chain?.lineage || [];
         const lines = [
@@ -469,12 +482,18 @@ const History: React.FC = () => {
           '',
         ];
         await copyToClipboard(lines.join('\n'));
-        return;
+        receipt.message = '链路摘要已复制';
+      } else {
+        await loadDetail(latestId);
+        receipt.message = '已打开详情';
       }
-      await loadDetail(latestId);
     } catch (e: any) {
+      receipt.status = 'error';
+      receipt.message = e?.message || '快捷动作执行失败';
       setError(e?.message || '快捷动作执行失败');
     } finally {
+      receipt.duration_ms = Date.now() - startedAt;
+      setActionReceipts((prev) => [receipt, ...prev].slice(0, 20));
       setLoading(false);
     }
   };
@@ -691,6 +710,27 @@ const History: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow-md p-6">
+          {actionReceipts.length > 0 && (
+            <div className="mb-6 border rounded p-3 bg-emerald-50 border-emerald-200">
+              <div className="flex justify-between items-center mb-2">
+                <div className="text-sm font-semibold text-emerald-700">操作回执</div>
+                <div className="text-xs text-gray-600">最近 {actionReceipts.length} 条</div>
+              </div>
+              <div className="space-y-2 max-h-44 overflow-auto">
+                {actionReceipts.map((x, idx) => (
+                  <div key={`${x.ts}-${idx}`} className="text-xs border rounded p-2 bg-white">
+                    <div className="text-gray-500">{x.ts}</div>
+                    <div className="text-gray-800">
+                      {x.status === 'success' ? '✅' : '❌'} {x.action} · {x.message}
+                    </div>
+                    <div className="text-gray-600">
+                      root: {x.root_id || '-'} · request: {x.latest_request_id || '-'} · new: {x.new_request_id || '-'} · {x.duration_ms}ms
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {rootBoard && (
             <div className="mb-6 border rounded p-3 bg-indigo-50 border-indigo-200">
               <div className="flex justify-between items-center mb-2">

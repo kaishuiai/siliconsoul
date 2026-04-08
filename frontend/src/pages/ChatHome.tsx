@@ -31,6 +31,7 @@ const TASK_OPTIONS = [
 ];
 
 const STORE_KEY = 'chat_home_sessions_v1';
+const DELETED_KEY = 'chat_home_deleted_sessions_v1';
 
 const toText = (obj: any): string => {
   if (obj == null) return '';
@@ -100,14 +101,26 @@ const ChatHome: React.FC<ChatHomeProps> = ({ user }) => {
       return '';
     }
   });
+  const [deletedSessionIds, setDeletedSessionIds] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem(DELETED_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.map((x) => String(x)) : [];
+    } catch {
+      return [];
+    }
+  });
   const [input, setInput] = useState('');
   const [sessionSearch, setSessionSearch] = useState('');
   const [sending, setSending] = useState(false);
   const [experts, setExperts] = useState<Array<{ name: string; supported_tasks: string[] }>>([]);
   const [error, setError] = useState('');
+  const [lastDeleted, setLastDeleted] = useState<Session | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const streamTimerRef = useRef<number | null>(null);
+  const undoTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!activeId && sessions.length > 0) setActiveId(sessions.find((x) => !x.archived)?.id || sessions[0].id);
@@ -116,6 +129,9 @@ const ChatHome: React.FC<ChatHomeProps> = ({ user }) => {
   useEffect(() => {
     localStorage.setItem(STORE_KEY, JSON.stringify(sessions));
   }, [sessions]);
+  useEffect(() => {
+    localStorage.setItem(DELETED_KEY, JSON.stringify(deletedSessionIds));
+  }, [deletedSessionIds]);
 
   useEffect(() => {
     (async () => {
@@ -127,6 +143,7 @@ const ChatHome: React.FC<ChatHomeProps> = ({ user }) => {
     })();
     return () => {
       if (streamTimerRef.current) window.clearInterval(streamTimerRef.current);
+      if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
       if (abortRef.current) abortRef.current.abort();
     };
   }, []);
@@ -306,6 +323,7 @@ const ChatHome: React.FC<ChatHomeProps> = ({ user }) => {
       const grouped = new Map<string, any[]>();
       for (const r of rows) {
         const cid = r.conversation_id || r.request_id;
+        if (deletedSessionIds.includes(String(cid))) continue;
         if (!grouped.has(cid)) grouped.set(cid, []);
         grouped.get(cid)?.push(r);
       }
@@ -361,6 +379,47 @@ const ChatHome: React.FC<ChatHomeProps> = ({ user }) => {
     }
   };
 
+  const deleteSession = (sessionId: string) => {
+    const target = sessions.find((x) => x.id === sessionId);
+    if (!target) return;
+    const ok = window.confirm(`确认删除会话「${target.title || '新对话'}」？删除后不可恢复。`);
+    if (!ok) return;
+    if (sending && activeSession?.id === sessionId) stop();
+    setSessions((prev) => prev.filter((x) => x.id !== sessionId));
+    setDeletedSessionIds((prev) => (prev.includes(sessionId) ? prev : [sessionId, ...prev].slice(0, 1000)));
+    setLastDeleted(target);
+    if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+    undoTimerRef.current = window.setTimeout(() => {
+      setLastDeleted(null);
+      undoTimerRef.current = null;
+    }, 8000);
+    if (activeId === sessionId) {
+      const remain = sessions.filter((x) => x.id !== sessionId && !x.archived);
+      if (remain.length > 0) {
+        setActiveId(remain[0].id);
+      } else {
+        const s = makeSession();
+        setSessions((prev) => [s, ...prev.filter((x) => x.id !== sessionId)]);
+        setActiveId(s.id);
+      }
+    }
+  };
+
+  const undoDelete = () => {
+    if (!lastDeleted) return;
+    if (undoTimerRef.current) {
+      window.clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+    }
+    setSessions((prev) => {
+      if (prev.some((x) => x.id === lastDeleted.id)) return prev;
+      return [lastDeleted, ...prev];
+    });
+    setDeletedSessionIds((prev) => prev.filter((x) => x !== lastDeleted.id));
+    setActiveId(lastDeleted.id);
+    setLastDeleted(null);
+  };
+
   return (
     <div className="h-[calc(100vh-64px)] p-4 md:p-6 flex gap-4">
       <div className="w-80 shrink-0 bg-white rounded-lg shadow-md p-4 h-full overflow-auto">
@@ -379,19 +438,29 @@ const ChatHome: React.FC<ChatHomeProps> = ({ user }) => {
         />
         <div className="space-y-2 max-h-64 overflow-auto mb-4">
           {visibleSessions.map((s) => (
-            <button
+            <div
               key={s.id}
-              onClick={() => setActiveId(s.id)}
               className={`w-full text-left px-3 py-2 border rounded-lg ${activeSession?.id === s.id ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
             >
-              <div className="text-sm font-semibold text-gray-800 truncate">{s.title || '新对话'}</div>
-              <div className="text-xs text-gray-500 truncate">{new Date(s.updatedAt).toLocaleString()}</div>
-            </button>
+              <button onClick={() => setActiveId(s.id)} className="w-full text-left">
+                <div className="text-sm font-semibold text-gray-800 truncate">{s.title || '新对话'}</div>
+                <div className="text-xs text-gray-500 truncate">{new Date(s.updatedAt).toLocaleString()}</div>
+              </button>
+              <div className="mt-1 flex justify-end">
+                <button
+                  onClick={() => deleteSession(s.id)}
+                  className="text-xs px-2 py-1 border border-red-200 text-red-600 rounded hover:bg-red-50"
+                >
+                  删除
+                </button>
+              </div>
+            </div>
           ))}
         </div>
         <div className="flex gap-2 mb-4">
           <button onClick={renameCurrent} disabled={!activeSession} className="px-2 py-1 border rounded text-xs text-gray-700 disabled:opacity-40">重命名</button>
           <button onClick={archiveCurrent} disabled={!activeSession} className="px-2 py-1 border rounded text-xs text-gray-700 disabled:opacity-40">归档</button>
+          <button onClick={() => activeSession && deleteSession(activeSession.id)} disabled={!activeSession} className="px-2 py-1 border rounded text-xs text-red-600 border-red-200 disabled:opacity-40">删除</button>
         </div>
         <div className="mb-4">
           <div className="text-sm text-gray-600 mb-2">场景</div>
@@ -477,6 +546,14 @@ const ChatHome: React.FC<ChatHomeProps> = ({ user }) => {
           </div>
         </div>
       </div>
+      {lastDeleted && (
+        <div className="fixed bottom-6 right-6 bg-gray-900 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3">
+          <span className="text-sm">已删除「{lastDeleted.title || '新对话'}」</span>
+          <button onClick={undoDelete} className="text-sm px-2 py-1 rounded bg-white text-gray-900 hover:bg-gray-100">
+            撤销
+          </button>
+        </div>
+      )}
     </div>
   );
 };

@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ（Mongolian, traditional script）：README.mn.md
 - العربية：README.ar.md
 
-> 更新状态（2026-04-08）：PRD Phase 1（第四批）已上线“根请求工作台”与 Top 变化节点导航，复盘从单条记录升级为链路级工作流。
+> 更新状态（2026-04-08）：PRD Phase 1（第五批）已上线链路风险评分与工作台多维排序（latest/risk/depth/activity），复盘优先级更清晰。
 
 ## 项目用途 / 价值 / 定位 / 差异点
 

@@ -17,7 +17,7 @@ Ngôn ngữ:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Trạng thái cập nhật (2026-04-08): PRD Phase 1 (đợt 4) bổ sung workspace root-request và điều hướng Top node thay đổi để nâng cấp rà soát lên cấp độ chuỗi.
+> Trạng thái cập nhật (2026-04-08): PRD Phase 1 (đợt 5) bổ sung chấm điểm rủi ro chuỗi và sắp xếp đa tiêu chí (latest/risk/depth/activity) cho workspace.
 
 ## Mục đích / Giá trị / Định vị / Khác biệt
 

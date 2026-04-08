@@ -17,7 +17,7 @@ Idiomas:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Estado de actualización (2026-04-08): PRD Fase 1 (lote 4) añade un workspace de solicitudes raíz y navegación Top de cambios para revisión a nivel de cadena.
+> Estado de actualización (2026-04-08): PRD Fase 1 (lote 5) añade scoring de riesgo de cadena y ordenamiento multiclave (latest/risk/depth/activity) en el workspace.
 
 ## Uso / Valor / Posicionamiento / Diferenciadores
 

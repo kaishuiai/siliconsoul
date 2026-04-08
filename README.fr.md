@@ -17,7 +17,7 @@ Langues :
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script) : README.mn.md
 - العربية : README.ar.md
 
-> Statut de mise à jour (2026-04-08) : PRD Phase 1 (lot 4) ajoute un workspace des requêtes racines et une navigation Top changements pour une revue au niveau de la chaîne.
+> Statut de mise à jour (2026-04-08) : PRD Phase 1 (lot 5) ajoute un scoring de risque de chaîne et un tri multi-critères (latest/risk/depth/activity) dans le workspace.
 
 ## Usage / Valeur / Positionnement / Différences
 

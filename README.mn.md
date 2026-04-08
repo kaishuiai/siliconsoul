@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Update status (2026-04-08): PRD Phase 1 (batch 4) adds root-request workspace and Top-change navigation.
+> Update status (2026-04-08): PRD Phase 1 (batch 5) adds chain risk scoring and multi-sort workspace views.
 
 ## ᠵᠣᠷᠢᠯᠭᠠ / ᠠᠴᠠ ᠲᠤᠰ / ᠪᠠᠢᠷᠢᠯᠠᠯ / ᠢᠯᠭᠠᠯᠲᠠ
 

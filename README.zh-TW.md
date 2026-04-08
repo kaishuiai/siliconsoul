@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ（Mongolian, traditional script）：README.mn.md
 - العربية：README.ar.md
 
-> 更新狀態（2026-04-08）：PRD Phase 1（第四批）已上線「根請求工作台」與 Top 變化節點導覽，復盤從單筆升級為鏈路級工作流。
+> 更新狀態（2026-04-08）：PRD Phase 1（第五批）已上線鏈路風險評分與工作台多維排序（latest/risk/depth/activity），復盤優先級更清晰。
 
 ## 專案用途 / 價值 / 定位 / 差異點
 

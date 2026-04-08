@@ -66,6 +66,14 @@ python -m src.api_server.server
 - items：按 root 聚合的请求链摘要（latest_request_id/latest_timestamp/total_nodes/replay_nodes/max_depth）
 - total_roots：根请求总数
 
+支持参数：
+
+- sort_by：latest/risk/depth/activity
+
+其中 items 每项包含：
+
+- risk_score：链路风险评分（用于工作台排序）
+
 ### GET /api/history/<user_id>/<request_id>
 
 返回字段（兼容模式）：

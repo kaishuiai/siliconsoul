@@ -248,6 +248,7 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
         expert_name = params.get("expert_name")
         since = params.get("since")
         until = params.get("until")
+        sort_by = str(params.get("sort_by", "latest") or "latest").lower()
         top_n = int(params.get("top_n", 50) or 50)
         scan_limit = min(int(params.get("scan_limit", 2000) or 2000), 5000)
         items = []
@@ -312,10 +313,14 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
                     "latest_request_id": rid,
                     "latest_timestamp": it.get("timestamp"),
                     "latest_text": it.get("text"),
+                    "latest_consensus_level": it.get("consensus_level"),
+                    "latest_overall_confidence": it.get("overall_confidence"),
                     "total_nodes": 0,
                     "replay_nodes": 0,
                     "max_depth": 0,
                     "consensus_counts": {},
+                    "max_confidence": None,
+                    "min_confidence": None,
                 }
                 roots[root_id] = g
             g["total_nodes"] += 1
@@ -335,11 +340,47 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
                 g["latest_timestamp"] = it.get("timestamp")
                 g["latest_request_id"] = rid
                 g["latest_text"] = it.get("text")
+                g["latest_consensus_level"] = it.get("consensus_level")
+                g["latest_overall_confidence"] = it.get("overall_confidence")
             cc = str(it.get("consensus_level") or "none")
             g["consensus_counts"][cc] = g["consensus_counts"].get(cc, 0) + 1
+            conf = it.get("overall_confidence")
+            if isinstance(conf, (int, float)):
+                if g["max_confidence"] is None or conf > g["max_confidence"]:
+                    g["max_confidence"] = conf
+                if g["min_confidence"] is None or conf < g["min_confidence"]:
+                    g["min_confidence"] = conf
 
         out = list(roots.values())
-        out.sort(key=lambda x: str(x.get("latest_timestamp", "")), reverse=True)
+
+        def _risk_score(x: Dict[str, Any]) -> float:
+            score = 0.0
+            latest_consensus = str(x.get("latest_consensus_level") or "none")
+            if latest_consensus == "none":
+                score += 60
+            elif latest_consensus == "low":
+                score += 40
+            elif latest_consensus == "medium":
+                score += 20
+            score += min(float(x.get("replay_nodes", 0)) * 5.0, 20.0)
+            score += min(float(x.get("max_depth", 0)) * 3.0, 18.0)
+            max_c = x.get("max_confidence")
+            min_c = x.get("min_confidence")
+            if isinstance(max_c, (int, float)) and isinstance(min_c, (int, float)):
+                score += min(abs(float(max_c) - float(min_c)) * 100.0 * 0.5, 25.0)
+            return round(score, 2)
+
+        for row in out:
+            row["risk_score"] = _risk_score(row)
+
+        if sort_by == "risk":
+            out.sort(key=lambda x: (float(x.get("risk_score", 0)), str(x.get("latest_timestamp", ""))), reverse=True)
+        elif sort_by == "depth":
+            out.sort(key=lambda x: (int(x.get("max_depth", 0)), str(x.get("latest_timestamp", ""))), reverse=True)
+        elif sort_by == "activity":
+            out.sort(key=lambda x: (int(x.get("total_nodes", 0)), str(x.get("latest_timestamp", ""))), reverse=True)
+        else:
+            out.sort(key=lambda x: str(x.get("latest_timestamp", "")), reverse=True)
         return {"items": out[:top_n], "total_roots": len(out)}
 
     @gateway.route("/api/history/<user_id>/<request_id>", methods=["GET"])

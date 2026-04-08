@@ -20,6 +20,7 @@ const History: React.FC = () => {
   const [selected, setSelected] = useState<any | null>(null);
   const [chainData, setChainData] = useState<any | null>(null);
   const [rootBoard, setRootBoard] = useState<{ items: any[]; total_roots: number } | null>(null);
+  const [rootSortBy, setRootSortBy] = useState<'latest' | 'risk' | 'depth' | 'activity'>('latest');
   const [expertOptions, setExpertOptions] = useState<string[]>([]);
   const [detailExpertName, setDetailExpertName] = useState<string>('');
   const [detailOnlyErrors, setDetailOnlyErrors] = useState<boolean>(false);
@@ -413,7 +414,7 @@ const History: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const resp = await historyAPI.roots(userId, q, taskType, expertName, 50);
+      const resp = await historyAPI.roots(userId, q, taskType, expertName, 50, rootSortBy);
       setRootBoard(resp);
     } catch (e: any) {
       setError(e?.message || '加载根请求工作台失败');
@@ -478,6 +479,12 @@ const History: React.FC = () => {
     })();
     loadExperts();
   }, []);
+
+  useEffect(() => {
+    if (rootBoard) {
+      loadRootBoard();
+    }
+  }, [rootSortBy]);
 
   return (
     <div className="p-6">
@@ -607,6 +614,16 @@ const History: React.FC = () => {
           >
             根请求工作台
           </button>
+          <select
+            value={rootSortBy}
+            onChange={(e) => setRootSortBy(e.target.value as any)}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
+          >
+            <option value="latest">工作台排序：最新</option>
+            <option value="risk">工作台排序：风险</option>
+            <option value="depth">工作台排序：深度</option>
+            <option value="activity">工作台排序：活跃度</option>
+          </select>
         </div>
       </div>
 
@@ -636,6 +653,9 @@ const History: React.FC = () => {
                     <div className="text-xs text-blue-700 truncate">root: {r.root_id}</div>
                     <div className="text-xs text-gray-600 mt-1">
                       nodes: {r.total_nodes} · replay: {r.replay_nodes} · depth: {r.max_depth}
+                    </div>
+                    <div className="text-xs text-rose-700 mt-1">
+                      risk: {r.risk_score ?? '-'} · consensus: {r.latest_consensus_level || '-'}
                     </div>
                   </button>
                 ))}

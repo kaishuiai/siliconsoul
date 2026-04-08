@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> 更新状況（2026-04-08）：PRD Phase 1（第4バッチ）でルート要求ワークスペースとTop変化ノード導線を追加し、復盤をチェーン単位に拡張しました。
+> 更新状況（2026-04-08）：PRD Phase 1（第5バッチ）でチェーンのリスクスコアと多軸ソート（latest/risk/depth/activity）を追加し、優先順位付けを強化しました。
 
 ## 用途 / 価値 / 位置づけ / 差別化
 

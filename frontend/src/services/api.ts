@@ -183,11 +183,12 @@ export const historyAPI = {
     q: string = '',
     taskType: string = '',
     expertName: string = '',
-    topN: number = 50
+    topN: number = 50,
+    sortBy: 'latest' | 'risk' | 'depth' | 'activity' = 'latest'
   ) =>
     get<{ items: any[]; total_roots: number }>(
       `/history/roots/${encodeURIComponent(userId)}`,
-      { params: { q: q || undefined, task_type: taskType || undefined, expert_name: expertName || undefined, top_n: topN } }
+      { params: { q: q || undefined, task_type: taskType || undefined, expert_name: expertName || undefined, top_n: topN, sort_by: sortBy } }
     ),
   replay: (
     userId: string,

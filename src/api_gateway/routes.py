@@ -201,6 +201,13 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
         q = params.get("q")
         expert_name = params.get("expert_name")
         task_type = params.get("task_type")
+        replay_of = params.get("replay_of")
+        only_replay_raw = params.get("only_replay", False)
+        only_replay = False
+        if isinstance(only_replay_raw, bool):
+            only_replay = only_replay_raw
+        elif isinstance(only_replay_raw, str):
+            only_replay = only_replay_raw.lower() in {"1", "true", "yes"}
         consensus_level = params.get("consensus_level")
         since = params.get("since")
         until = params.get("until")
@@ -215,7 +222,22 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
         sm = getattr(orchestrator, "storage_manager", None)
         if sm is None:
             raise ValueError("storage_manager not available")
-        return {"items": sm.list_requests(user_id=user_id, q=q, expert_name=expert_name, task_type=task_type, consensus_level=consensus_level, only_errors=only_errors, since=since, until=until, limit=limit, offset=offset)}
+        return {
+            "items": sm.list_requests(
+                user_id=user_id,
+                q=q,
+                expert_name=expert_name,
+                task_type=task_type,
+                replay_of=replay_of,
+                only_replay=only_replay,
+                consensus_level=consensus_level,
+                only_errors=only_errors,
+                since=since,
+                until=until,
+                limit=limit,
+                offset=offset,
+            )
+        }
 
     @gateway.route("/api/history/<user_id>/<request_id>", methods=["GET"])
     async def get_history_detail(
@@ -285,10 +307,19 @@ def create_routes(gateway: APIGateway, orchestrator: Any) -> None:
             expert_names = [str(x) for x in expert_names if str(x)]
             expert_names = expert_names or None
 
+        replay_context = record.context or {}
+        if isinstance(replay_context, dict):
+            replay_context = dict(replay_context)
+            meta = replay_context.get("_meta")
+            if not isinstance(meta, dict):
+                meta = {}
+            meta = dict(meta)
+            meta["replay_of"] = request_id
+            replay_context["_meta"] = meta
         replayed = await orchestrator.process(
             record.text,
             task_type,
-            record.context or {},
+            replay_context,
             user_id=user_id,
             extra_params={"replay_of": request_id},
             expert_names=expert_names,

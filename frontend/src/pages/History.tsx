@@ -8,6 +8,8 @@ const History: React.FC = () => {
   const [q, setQ] = useState<string>('');
   const [expertName, setExpertName] = useState<string>('');
   const [taskType, setTaskType] = useState<string>('');
+  const [replayOf, setReplayOf] = useState<string>('');
+  const [onlyReplay, setOnlyReplay] = useState<boolean>(false);
   const [onlyCFO, setOnlyCFO] = useState<boolean>(false);
   const [consensusLevel, setConsensusLevel] = useState<string>('');
   const [onlyErrors, setOnlyErrors] = useState<boolean>(false);
@@ -319,7 +321,7 @@ const History: React.FC = () => {
     setError(null);
     try {
       const t = computeSinceUntil();
-      const resp = await historyAPI.list(targetUserId, q, nextLimit, nextOffset, expertName, consensusLevel, onlyErrors, t.since, t.until, taskType);
+      const resp = await historyAPI.list(targetUserId, q, nextLimit, nextOffset, expertName, replayOf, onlyReplay, consensusLevel, onlyErrors, t.since, t.until, taskType);
       setOffset(nextOffset);
       setLimit(nextLimit);
       setItems(resp.items || []);
@@ -458,6 +460,20 @@ const History: React.FC = () => {
             className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
             disabled={onlyCFO}
           />
+          <input
+            value={replayOf}
+            onChange={(e) => setReplayOf(e.target.value)}
+            placeholder="replay_of（可选）"
+            className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+          />
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={onlyReplay}
+              onChange={(e) => setOnlyReplay(e.target.checked)}
+            />
+            仅重放
+          </label>
           <select
             value={consensusLevel}
             onChange={(e) => setConsensusLevel(e.target.value)}
@@ -538,6 +554,9 @@ const History: React.FC = () => {
                       </div>
                       <div className="text-sm font-semibold text-gray-800 truncate">{it.text}</div>
                       <div className="text-xs text-gray-600 truncate">{it.request_id}</div>
+                      {it.replay_of && (
+                        <div className="text-xs text-amber-600 truncate mt-1">replay_of: {it.replay_of}</div>
+                      )}
                     </div>
                     <div className="flex flex-col gap-2">
                       <button

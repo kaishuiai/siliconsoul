@@ -53,6 +53,8 @@ python -m src.api_server.server
 - q：按请求文本关键词
 - expert_name：按专家结果过滤（例如 CFOExpert）
 - task_type：按任务类型过滤（例如 cfo_chat）
+- replay_of：按重放父请求 ID 过滤
+- only_replay：true/false，仅查看重放产生的请求
 - consensus_level：high/medium/low/none
 - only_errors：true/false
 - since/until：ISO 时间范围

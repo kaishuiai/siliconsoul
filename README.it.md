@@ -17,7 +17,7 @@ Lingue:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Stato aggiornamento (2026-04-08): PRD Phase 0 (batch 3) ha unificato i campi standard tra process/batch/replay (con compatibilità) e migliorato il riepilogo confronto in History.
+> Stato aggiornamento (2026-04-08): PRD Phase 1 (batch 1) aggiunge tracciamento catena replay (`replay_of`) e filtro replay in History per rafforzare il ciclo di review.
 
 ## Scopo / Valore / Posizionamento / Differenziatori
 

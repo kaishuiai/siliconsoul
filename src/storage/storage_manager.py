@@ -216,6 +216,8 @@ class StorageManager:
         q: Optional[str] = None,
         expert_name: Optional[str] = None,
         task_type: Optional[str] = None,
+        replay_of: Optional[str] = None,
+        only_replay: bool = False,
         consensus_level: Optional[str] = None,
         only_errors: bool = False,
         since: Optional[str] = None,
@@ -256,6 +258,23 @@ class StorageManager:
                             t = meta.get("task_type")
                     if t == want:
                         filtered.append(r)
+                items = filtered
+
+            if replay_of or only_replay:
+                filtered = []
+                want_replay_of = str(replay_of) if replay_of else None
+                for r in items:
+                    ctx = r.context if hasattr(r, "context") else r.get("context")
+                    ro = None
+                    if isinstance(ctx, dict):
+                        meta = ctx.get("_meta")
+                        if isinstance(meta, dict):
+                            ro = meta.get("replay_of")
+                    if only_replay and not ro:
+                        continue
+                    if want_replay_of and ro != want_replay_of:
+                        continue
+                    filtered.append(r)
                 items = filtered
 
             results_list = self.results
@@ -343,12 +362,16 @@ class StorageManager:
                 text = r.text if hasattr(r, "text") else r.get("text")
                 ts = r.timestamp.isoformat() if hasattr(r, "timestamp") else r.get("timestamp")
                 task = None
+                replay_parent = None
                 ctx = r.context if hasattr(r, "context") else r.get("context")
                 if isinstance(ctx, dict):
                     meta = ctx.get("_meta")
                     if isinstance(meta, dict):
                         task = meta.get("task_type")
+                        replay_parent = meta.get("replay_of")
                 row: Dict[str, Any] = {"request_id": request_id, "user_id": uid, "text": text, "timestamp": ts, "task_type": task}
+                if replay_parent:
+                    row["replay_of"] = replay_parent
                 agg = aggregated_map.get(request_id)
                 if agg:
                     row["consensus_level"] = agg.get("consensus_level")
@@ -362,6 +385,8 @@ class StorageManager:
                 q=q,
                 expert_name=expert_name,
                 task_type=task_type,
+                replay_of=replay_of,
+                only_replay=only_replay,
                 consensus_level=consensus_level,
                 only_errors=only_errors,
                 since=since,
@@ -688,6 +713,8 @@ class StorageManager:
         q: Optional[str],
         expert_name: Optional[str],
         task_type: Optional[str],
+        replay_of: Optional[str],
+        only_replay: bool,
         consensus_level: Optional[str],
         only_errors: bool,
         since: Optional[str],
@@ -714,6 +741,12 @@ class StorageManager:
         if task_type:
             clauses.append("req.context LIKE ?")
             args.append(f"%\"task_type\"%{task_type}%")
+        if replay_of:
+            clauses.append("req.context LIKE ?")
+            args.append(f"%\"replay_of\"%{replay_of}%")
+        if only_replay:
+            clauses.append("req.context LIKE ?")
+            args.append("%\"replay_of\"%")
         if consensus_level:
             clauses.append("agg.result LIKE ?")
             args.append(f"%\"consensus_level\"%{consensus_level}%")
@@ -766,6 +799,8 @@ class StorageManager:
                     meta = ctx.get("_meta") if isinstance(ctx, dict) else None
                     if isinstance(meta, dict):
                         row["task_type"] = meta.get("task_type")
+                        if meta.get("replay_of"):
+                            row["replay_of"] = meta.get("replay_of")
                 except Exception:
                     pass
             output.append(row)

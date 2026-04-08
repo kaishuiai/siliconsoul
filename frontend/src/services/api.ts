@@ -162,6 +162,8 @@ export const historyAPI = {
     limit: number = 50,
     offset: number = 0,
     expertName: string = '',
+    replayOf: string = '',
+    onlyReplay: boolean = false,
     consensusLevel: string = '',
     onlyErrors: boolean = false,
     since: string = '',
@@ -170,7 +172,7 @@ export const historyAPI = {
   ) =>
     get<{ items: Array<{ request_id: string; user_id: string; text: string; timestamp: string }> }>(
       `/history/${encodeURIComponent(userId)}`,
-      { params: { q, limit, offset, expert_name: expertName || undefined, consensus_level: consensusLevel || undefined, only_errors: onlyErrors || undefined, since: since || undefined, until: until || undefined, task_type: taskType || undefined } }
+      { params: { q, limit, offset, expert_name: expertName || undefined, replay_of: replayOf || undefined, only_replay: onlyReplay || undefined, consensus_level: consensusLevel || undefined, only_errors: onlyErrors || undefined, since: since || undefined, until: until || undefined, task_type: taskType || undefined } }
     ),
   detail: (userId: string, requestId: string) =>
     get<any>(`/history/${encodeURIComponent(userId)}/${encodeURIComponent(requestId)}`),

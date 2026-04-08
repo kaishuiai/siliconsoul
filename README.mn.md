@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Update status (2026-04-08): PRD Phase 0 (batch 3) unified process/batch/replay standardized fields and improved History compare summary.
+> Update status (2026-04-08): PRD Phase 1 (batch 1) adds replay-chain tracing (`replay_of`) and replay filtering in History.
 
 ## ᠵᠣᠷᠢᠯᠭᠠ / ᠠᠴᠠ ᠲᠤᠰ / ᠪᠠᠢᠷᠢᠯᠠᠯ / ᠢᠯᠭᠠᠯᠲᠠ
 

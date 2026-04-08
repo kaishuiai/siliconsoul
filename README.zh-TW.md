@@ -17,7 +17,7 @@
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ（Mongolian, traditional script）：README.mn.md
 - العربية：README.ar.md
 
-> 更新狀態（2026-04-08）：PRD Phase 0（第三批）已完成 process/batch/replay 標準化欄位統一（相容舊結構）與 History 對比摘要升級。
+> 更新狀態（2026-04-08）：PRD Phase 1（第一批）已支援 replay 鏈路追蹤（replay_of）與 History 重放篩選能力，持續強化復盤閉環。
 
 ## 專案用途 / 價值 / 定位 / 差異點
 

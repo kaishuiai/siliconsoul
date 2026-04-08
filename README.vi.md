@@ -17,7 +17,7 @@ Ngôn ngữ:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Trạng thái cập nhật (2026-04-08): PRD Phase 0 (đợt 3) đã thống nhất trường chuẩn giữa process/batch/replay (vẫn tương thích cũ) và nâng cấp tóm tắt so sánh trong History.
+> Trạng thái cập nhật (2026-04-08): PRD Phase 1 (đợt 1) bổ sung truy vết chuỗi replay (`replay_of`) và bộ lọc replay trong History để tăng độ hoàn chỉnh vòng rà soát.
 
 ## Mục đích / Giá trị / Định vị / Khác biệt
 

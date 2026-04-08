@@ -40,6 +40,7 @@ npm start
 本仓库不会提交任何 token / 私钥 / app id。请通过环境变量或本地配置文件注入。
 
 - 不要提交：`.env*`、`data/`、`logs/`、`*.db`、`*.key`、`*.pem`（已在 .gitignore 中忽略）
+- 推送前建议运行：`./scripts/security_check.sh`
 - 前端配置样例：`frontend/.env.example`
 - 常用环境变量（示例名，值不要写进仓库）：
   - `TUSHARE_TOKEN`：Tushare 数据源 token

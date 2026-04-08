@@ -17,7 +17,7 @@ Idiomas:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Estado de actualización (2026-04-08): PRD Fase 1 (lote 7) añade ejecución en un clic de acciones sugeridas (replay reforzado, revisión de conflictos, copia de resumen de cadena).
+> Estado de actualización (2026-04-08): PRD Fase 1 (lote 8) añade operation receipts para quick-actions (estado/new request ID/duración), con filtro y exportación JSON/MD.
 
 ## Uso / Valor / Posicionamiento / Diferenciadores
 

@@ -17,7 +17,7 @@ Ngôn ngữ:
 - ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ (Mongolian, traditional script): README.mn.md
 - العربية: README.ar.md
 
-> Trạng thái cập nhật (2026-04-08): PRD Phase 1 (đợt 7) bổ sung thực thi một chạm cho hành động gợi ý (replay tăng cường, rà soát xung đột, sao chép tóm tắt chain).
+> Trạng thái cập nhật (2026-04-08): PRD Phase 1 (đợt 8) bổ sung operation receipts cho quick-action (trạng thái/new request ID/thời lượng), kèm lọc và xuất JSON/MD.
 
 ## Mục đích / Giá trị / Định vị / Khác biệt
 

@@ -21,6 +21,7 @@ const History: React.FC = () => {
   const [chainData, setChainData] = useState<any | null>(null);
   const [rootBoard, setRootBoard] = useState<{ items: any[]; total_roots: number } | null>(null);
   const [actionReceipts, setActionReceipts] = useState<any[]>([]);
+  const [receiptStatusFilter, setReceiptStatusFilter] = useState<'all' | 'success' | 'error'>('all');
   const [rootSortBy, setRootSortBy] = useState<'latest' | 'risk' | 'depth' | 'activity'>('latest');
   const [expertOptions, setExpertOptions] = useState<string[]>([]);
   const [detailExpertName, setDetailExpertName] = useState<string>('');
@@ -41,6 +42,10 @@ const History: React.FC = () => {
   const [diffConfidenceThresholdPct, setDiffConfidenceThresholdPct] = useState<number>(10);
 
   const canQuery = useMemo(() => !!userId, [userId]);
+  const visibleReceipts = useMemo(
+    () => actionReceipts.filter((x) => (receiptStatusFilter === 'all' ? true : x.status === receiptStatusFilter)),
+    [actionReceipts, receiptStatusFilter]
+  );
 
   const aggregated = useMemo(() => {
     if (selected?.result) return { result: selected.result };
@@ -498,6 +503,43 @@ const History: React.FC = () => {
     }
   };
 
+  const exportReceipts = async (format: 'json' | 'md') => {
+    const data = visibleReceipts;
+    if (format === 'json') {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `action_receipts_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return;
+    }
+    const rows = data.map(
+      (x) =>
+        `| ${x.ts || '-'} | ${x.status || '-'} | ${x.action || '-'} | ${x.root_id || '-'} | ${x.latest_request_id || '-'} | ${x.new_request_id || '-'} | ${x.duration_ms || 0} | ${String(x.message || '-').replace(/\|/g, '\\|')} |`
+    );
+    const md = [
+      '# Action Receipts',
+      '',
+      '| ts | status | action | root_id | request_id | new_request_id | duration_ms | message |',
+      '| --- | --- | --- | --- | --- | --- | ---: | --- |',
+      ...rows,
+      '',
+    ].join('\n');
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `action_receipts_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const loadDetail = async (requestId: string) => {
     setLoading(true);
     setError(null);
@@ -714,10 +756,33 @@ const History: React.FC = () => {
             <div className="mb-6 border rounded p-3 bg-emerald-50 border-emerald-200">
               <div className="flex justify-between items-center mb-2">
                 <div className="text-sm font-semibold text-emerald-700">操作回执</div>
-                <div className="text-xs text-gray-600">最近 {actionReceipts.length} 条</div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={receiptStatusFilter}
+                    onChange={(e) => setReceiptStatusFilter(e.target.value as any)}
+                    className="px-2 py-1 border border-gray-300 rounded text-xs"
+                  >
+                    <option value="all">全部</option>
+                    <option value="success">仅成功</option>
+                    <option value="error">仅失败</option>
+                  </select>
+                  <button
+                    className="px-2 py-1 bg-white border rounded text-xs text-gray-700 hover:bg-gray-50"
+                    onClick={() => exportReceipts('json')}
+                  >
+                    导出JSON
+                  </button>
+                  <button
+                    className="px-2 py-1 bg-white border rounded text-xs text-gray-700 hover:bg-gray-50"
+                    onClick={() => exportReceipts('md')}
+                  >
+                    导出MD
+                  </button>
+                  <div className="text-xs text-gray-600">显示 {visibleReceipts.length}/{actionReceipts.length}</div>
+                </div>
               </div>
               <div className="space-y-2 max-h-44 overflow-auto">
-                {actionReceipts.map((x, idx) => (
+                {visibleReceipts.map((x, idx) => (
                   <div key={`${x.ts}-${idx}`} className="text-xs border rounded p-2 bg-white">
                     <div className="text-gray-500">{x.ts}</div>
                     <div className="text-gray-800">
